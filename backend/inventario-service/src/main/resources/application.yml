@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: inventario-service
+  datasource:
+    url: jdbc:mysql://localhost:5510/joyeria_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Lima
+    username: app
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "com.cibertec.productsservices.kafka,com.cibertec.salesservices.kafka"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: "com.cibertec.productsservices.kafka.StockMovementEvent"
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+app:
+  jwt:
+    secret: "cibertec-demo-jwt-secret-key-2026-minimo-32-caracteres"
+
+server:
+  port: 8081
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+

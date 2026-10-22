@@ -1,0 +1,65 @@
+<div class="content-container">
+  <h2>🛒 Mi Carrito - Joyería Morga</h2>
+  <p class="subtitle">Arma la venta y procésala (descuenta stock por RabbitMQ/Kafka)</p>
+  <div class="cart-grid">
+    <div class="card">
+      <h3>1. Cliente</h3>
+      <div class="form-group">
+        <label>Cliente</label>
+        <select [(ngModel)]="clienteId">
+          <option [ngValue]="null">-- Elige cliente --</option>
+          <option *ngFor="let c of clientes" [ngValue]="c.customerId">{{ etiquetaCliente(c) }}</option>
+        </select>
+      </div>
+
+      <h3>2. Agregar Joya</h3>
+      <div class="form-group"><label>Joya</label>
+        <select [(ngModel)]="joyaId" (ngModelChange)="onJoyaChange()">
+          <option [value]="0">-- Elige joya --</option>
+          <option *ngFor="let j of joyas" [value]="j.id">{{ j.name }} - S/ {{ j.price | number:'1.2-2' }} (Stock: {{ j.stock }})</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Precio Unitario</label>
+          <input [value]="'S/ ' + (precioUnitario | number:'1.2-2')" readonly disabled />
+        </div>
+        <div class="form-group">
+          <label>Cantidad</label>
+          <input type="number" [(ngModel)]="cantidad" [min]="1" [max]="stockMax" />
+        </div>
+      </div>
+      <p class="preview-subtotal" *ngIf="joyaSeleccionada">
+        Subtotal: <strong>S/ {{ subtotalPreview | number:'1.2-2' }}</strong>
+        <span class="muted">({{ precioUnitario | number:'1.2-2' }} × {{ cantidad }})</span>
+      </p>
+      <button class="btn-primary" (click)="agregar()">+ Agregar al carrito</button>
+    </div>
+    <div class="card">
+      <h3>Detalle de venta</h3>
+      <table class="data-table">
+        <thead><tr><th>Joya</th><th>Cant</th><th>P.Unit</th><th>Subtotal</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let i of carrito; let idx = index">
+            <td>{{ i.joya.descripcion || i.joya.name }}</td>
+            <td><span class="pill-cant">{{ i.cantidad }}</span></td>
+            <td>S/ {{ i.joya.price | number:'1.2-2' }}</td>
+            <td class="cell-subtotal">S/ {{ (i.joya.price! * i.cantidad) | number:'1.2-2' }}</td>
+            <td><button class="btn-quitar" (click)="quitar(idx)">Quitar</button></td>
+          </tr>
+          <tr *ngIf="carrito.length === 0">
+            <td colspan="5" class="empty-row">Carrito vacío — agrega joyas desde aquí o desde Inventario 🛒</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="total-grande">Total: S/ {{ total | number:'1.2-2' }}</div>
+      <div class="actions">
+        <button class="btn-secondary" (click)="vaciar()">Vaciar</button>
+        <button class="btn-primary" (click)="procesar()" [disabled]="procesando || carrito.length === 0">
+          {{ procesando ? 'Procesando…' : 'Confirmar venta' }}
+        </button>
+        <a routerLink="/ventas" class="btn-success">🧾 Ver historial</a>
+      </div>
+    </div>
+  </div>
+</div>

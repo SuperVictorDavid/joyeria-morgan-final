@@ -1,0 +1,98 @@
+/* ===== Inventario — estilo referencia JoyeriaMorgaMVC ===== */
+.inv-page .header-section h2 { font-size: 1.6rem; }
+
+/* Stat cards con iconos de color */
+.inv-stats .stat-icon { font-size: 1.4rem; font-weight: 700; }
+.icon-purple { background: #f3e8ff; color: #7c3aed; }
+.icon-green { background: #dcfce7; color: #16a34a; }
+.icon-red { background: #fee2e2; color: #dc2626; }
+.icon-orange { background: #ffedd5; color: #ea580c; }
+
+/* Card de filtros */
+.filter-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.25rem 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 0.9rem;
+  align-items: end;
+}
+.filter-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.35rem;
+}
+.filter-field .search-input, .filter-field .filter-select { width: 100%; }
+.btn-limpiar { min-width: 100px; background: #e5e7eb; color: #374151; border-color: #d1d5db; }
+.filter-count { margin: 0.6rem 0 0.4rem; font-size: 0.82rem; color: var(--text-muted); }
+
+/* Tabla header oscuro */
+.inv-table thead { background: #1e293b; }
+.inv-table thead th { color: #f8fafc; }
+.inv-table tbody tr:hover { background: #f1f5f9; }
+.cell-id { color: var(--text-muted); font-weight: 600; }
+.cell-desc { font-weight: 700; }
+.cell-peso { white-space: nowrap; }
+.cell-precio { color: #16a34a; font-weight: 700; white-space: nowrap; }
+.empty-row { text-align: center; color: var(--text-muted); padding: 1.5rem; }
+
+/* Badges */
+.badge-tipo { background: #e0f2fe; color: #0284c7; }
+.badge-stock { background: #e0f2fe; color: #0369a1; }
+.badge-quilates { background: #fef3c7; color: #b45309; }
+.badge-oro { background: #fef3c7; color: #a16207; }
+.badge-plata { background: #e2e8f0; color: #475569; }
+.badge-platino { background: #334155; color: #f8fafc; }
+
+/* Pills de estado */
+.pill {
+  display: inline-flex; align-items: center;
+  padding: 0.25rem 0.8rem; border-radius: 9999px;
+  font-size: 0.75rem; font-weight: 600;
+}
+.pill-disponible { background: #dcfce7; color: #15803d; }
+.pill-vendido { background: #fee2e2; color: #b91c1c; }
+.pill-reservado { background: #fef3c7; color: #b45309; }
+
+/* Acciones */
+.actions { display: flex; gap: 0.4rem; }
+
+/* Modal con header azul */
+.inv-modal { padding: 0; overflow: hidden; }
+.inv-modal-header {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff; padding: 1rem 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.inv-modal-header h3 { color: #fff; margin: 0; padding: 0; border: none; font-size: 1.1rem; }
+.modal-close {
+  background: rgba(255,255,255,0.2); border: none; color: #fff;
+  border-radius: 6px; padding: 0.25rem 0.6rem; cursor: pointer; font-size: 1rem;
+}
+.modal-close:hover { background: rgba(255,255,255,0.35); }
+.inv-modal-body { padding: 1.5rem; }
+.inv-modal .modal-buttons { margin: 0; padding: 1rem 1.5rem 1.5rem; border: none; }
+.detail-grid p { margin-bottom: 0.5rem; font-size: 0.9rem; }
+.text-muted { color: var(--text-muted); }
+
+@media (max-width: 900px) {
+  .filter-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .filter-grid { grid-template-columns: 1fr; }
+}
+
+.pagination{display:flex;gap:.35rem;justify-content:center;align-items:center;margin:1rem 0 .5rem;flex-wrap:wrap}
+.page-btn{border:1px solid #cbd5e1;background:#fff;color:#2563eb;border-radius:6px;padding:.4rem .8rem;font-weight:600;cursor:pointer}
+.page-btn:hover:not(:disabled){background:#eff6ff}
+.page-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.page-btn:disabled{opacity:.5;cursor:not-allowed}
+

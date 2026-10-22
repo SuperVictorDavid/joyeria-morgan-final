@@ -1,0 +1,966 @@
+{
+  "info": {
+    "name": "Joyeria Morgan - Proyecto Final",
+    "_postman_id": "joyeria-morgan-final-001",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección estilo curso: Auth JWT + Inventario + Clientes + Ventas (Kafka/Rabbit/Feign/CB) + Reportes + Gateway + Eureka + Actuator. Importar junto al environment Joyeria Local."
+  },
+  "variable": [
+    {
+      "key": "authUrl",
+      "value": "http://localhost:8083"
+    },
+    {
+      "key": "inventarioUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "ventasUrl",
+      "value": "http://localhost:8082"
+    },
+    {
+      "key": "clientesUrl",
+      "value": "http://localhost:8084"
+    },
+    {
+      "key": "reportesUrl",
+      "value": "http://localhost:8085"
+    },
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8762"
+    },
+    {
+      "key": "eurekaUrl",
+      "value": "http://localhost:8761"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Si no hay token, inicia sesion con admin para poblar jwt_token",
+          "if (!pm.environment.get('jwt_token')) {",
+          "  pm.sendRequest({",
+          "    url: pm.collectionVariables.get('authUrl') + '/auth/login',",
+          "    method: 'POST',",
+          "    header: { 'Content-Type': 'application/json' },",
+          "    body: { mode: 'raw', raw: JSON.stringify({ username: 'admin', password: 'admin123' }) }",
+          "  }, function (err, res) {",
+          "    if (!err && res.code === 200) {",
+          "      var b = res.json();",
+          "      pm.environment.set('jwt_token', b.token || b);",
+          "    }",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00. Eureka",
+      "item": [
+        {
+          "name": "Eureka dashboard",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{eurekaUrl}}",
+              "host": [
+                "{{eurekaUrl}}"
+              ],
+              "path": []
+            },
+            "description": "Debe listar AUTH/INVENTARIO/VENTAS/CLIENTES/REPORTES/GATEWAY"
+          }
+        },
+        {
+          "name": "Eureka apps JSON",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{eurekaUrl}}/eureka/apps",
+              "host": [
+                "{{eurekaUrl}}"
+              ],
+              "path": [
+                "eureka",
+                "apps"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01. Auth JWT (8083)",
+      "item": [
+        {
+          "name": "Crear Usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200/201', function(){ pm.expect([200,201]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"email\": \"admin@joyeriamorgan.pe\",\n  \"password\": \"admin123\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{authUrl}}/users",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Público para el primer usuario (201 o 409 si existe)"
+          }
+        },
+        {
+          "name": "Login - Obtener JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login 200 + token', function(){ pm.response.to.have.status(200); const b = pm.response.json(); pm.expect(b.token).to.be.a('string'); });",
+                  "const b = pm.response.json(); pm.environment.set('jwt_token', b.token || b);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{authUrl}}/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Guarda jwt_token en el environment"
+          }
+        },
+        {
+          "name": "Listar Usuarios Con JWT",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/users",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login debe fallar con clave mala",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"xxx\"\n}"
+            },
+            "url": {
+              "raw": "{{authUrl}}/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. Inventario (8081)",
+      "item": [
+        {
+          "name": "Listar Joyas GET",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Joyas 200 + array', function(){ pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/products",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Joya POST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200/201', function(){ pm.expect([200,201]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Anillo de Oro 18K\",\n  \"descripcion\": \"Compromiso\",\n  \"tipoProducto\": \"Anillo\",\n  \"tipoMaterial\": \"Oro\",\n  \"quilates\": 18.0,\n  \"peso\": 5.20,\n  \"price\": 2500.00,\n  \"stock\": 10,\n  \"estado\": \"Disponible\"\n}"
+            },
+            "url": {
+              "raw": "{{inventarioUrl}}/products",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Joya PUT",
+          "event": [],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Anillo de Oro 18K\",\n  \"descripcion\": \"Compromiso\",\n  \"tipoProducto\": \"Anillo\",\n  \"tipoMaterial\": \"Oro\",\n  \"quilates\": 18.0,\n  \"peso\": 5.20,\n  \"price\": 2600.00,\n  \"stock\": 9,\n  \"estado\": \"Disponible\"\n}"
+            },
+            "url": {
+              "raw": "{{inventarioUrl}}/products/1",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "products",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Joya DELETE",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/products/1",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "products",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Clientes (8084)",
+      "item": [
+        {
+          "name": "Listar Clientes GET",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Clientes 200 + array', function(){ pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{clientesUrl}}/customers",
+              "host": [
+                "{{clientesUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Cliente POST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200/201', function(){ pm.expect([200,201]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Ana Torres\",\n  \"dni\": \"87654321\",\n  \"telefono\": \"987654321\",\n  \"direccion\": \"Av. Lima 123\",\n  \"email\": \"ana@gmail.com\"\n}"
+            },
+            "url": {
+              "raw": "{{clientesUrl}}/customers",
+              "host": [
+                "{{clientesUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Cliente PUT",
+          "event": [],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Juan Martinez Silva\",\n  \"dni\": \"12345678\",\n  \"telefono\": \"939987069\",\n  \"direccion\": \"Av. Arequipa\",\n  \"email\": \"juan@gmail.com\"\n}"
+            },
+            "url": {
+              "raw": "{{clientesUrl}}/customers/1",
+              "host": [
+                "{{clientesUrl}}"
+              ],
+              "path": [
+                "customers",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Cliente DELETE",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{clientesUrl}}/customers/1",
+              "host": [
+                "{{clientesUrl}}"
+              ],
+              "path": [
+                "customers",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Ventas (8082) Feign+Kafka+Rabbit+CB",
+      "item": [
+        {
+          "name": "Listar Ventas SIN token (debe fallar 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sin token debe fallar (401/403)', function(){ pm.expect([401,403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ventasUrl}}/sales",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "T4 Seguridad: sin JWT, ventas-service rechaza la peticion (403). Contrasta con 'Listar Ventas GET' (con token)."
+          }
+        },
+        {
+          "name": "Listar Ventas GET",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Ventas 200 + array', function(){ pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ventasUrl}}/sales",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Venta POST Kafka",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200/201', function(){ pm.expect([200,201]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 1,\n  \"customerId\": 1,\n  \"vendedor\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{ventasUrl}}/sales",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "Publica stock-movements, descuenta en inventario (requiere Kafka 9092)"
+          }
+        },
+        {
+          "name": "Crear Venta POST Rabbit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200/201', function(){ pm.expect([200,201]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 2,\n  \"quantity\": 1,\n  \"customerId\": 1,\n  \"vendedor\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{ventasUrl}}/sales/rabbit-reserve",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales",
+                "rabbit-reserve"
+              ]
+            },
+            "description": "Reserva por stock.reserve (requiere Rabbit 5672)"
+          }
+        },
+        {
+          "name": "Detalle Feign GET",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ventasUrl}}/sales/1/details",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales",
+                "1",
+                "details"
+              ]
+            },
+            "description": "Une venta + joya vía Feign lb://inventario-service"
+          }
+        },
+        {
+          "name": "Detalle Resiliente GET (CB)",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ventasUrl}}/sales/1/details-resiliente",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales",
+                "1",
+                "details-resiliente"
+              ]
+            },
+            "description": "Con CircuitBreaker+Retry, 503 si inventario caído (patrón T2)"
+          }
+        },
+        {
+          "name": "Actualizar Venta PUT",
+          "event": [],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2,\n  \"customerId\": 1,\n  \"vendedor\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{ventasUrl}}/sales/1",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Venta DELETE",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{ventasUrl}}/sales/1",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "sales",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. Reportes (8085)",
+      "item": [
+        {
+          "name": "Resumen GET",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{reportesUrl}}/reports/resumen",
+              "host": [
+                "{{reportesUrl}}"
+              ],
+              "path": [
+                "reports",
+                "resumen"
+              ]
+            },
+            "description": "Agrega inventario+ventas+clientes vía Feign"
+          }
+        },
+        {
+          "name": "Reporte Inventario GET",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{reportesUrl}}/reports/inventario",
+              "host": [
+                "{{reportesUrl}}"
+              ],
+              "path": [
+                "reports",
+                "inventario"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reporte Ventas GET",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{reportesUrl}}/reports/ventas",
+              "host": [
+                "{{reportesUrl}}"
+              ],
+              "path": [
+                "reports",
+                "ventas"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Gateway (8762)",
+      "item": [
+        {
+          "name": "GW Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login 200 + token', function(){ pm.response.to.have.status(200); const b = pm.response.json(); pm.expect(b.token).to.be.a('string'); });",
+                  "const b = pm.response.json(); pm.environment.set('jwt_token', b.token || b);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/auth/login",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GW Productos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('GW Productos 200 + array', function(){ pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/products",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GW Ventas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('GW Ventas 200 + array', function(){ pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/sales",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GW Clientes",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/customers",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GW Reportes",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/reports/resumen",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "reports",
+                "resumen"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07. Actuator",
+      "item": [
+        {
+          "name": "Health ventas",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ventasUrl}}/actuator/health",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Prometheus inventario",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/actuator/prometheus",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Health auth",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authUrl}}/actuator/health",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

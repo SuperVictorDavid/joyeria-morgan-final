@@ -1,0 +1,44 @@
+<div class="layout-wrapper">
+  <!-- Barra de navegación superior -->
+  <header class="navbar">
+    <div class="navbar-left">
+      <div class="logo">
+        <span class="logo-icon">💎</span>
+        <span class="logo-text">Joyería Morga</span>
+      </div>
+      <nav class="nav-links">
+        <div class="nav-group">
+          <a routerLink="/inicio" routerLinkActive="active">🏠 Inicio</a>
+          <a routerLink="/productos" routerLinkActive="active">💎 Productos</a>
+          <a routerLink="/clientes" routerLinkActive="active">👥 Clientes</a>
+          <a routerLink="/historial-ventas" routerLinkActive="active">🧾 Historial Ventas</a>
+          <a *ngIf="isAdmin()" routerLink="/reportes" routerLinkActive="active">📄 Reportes</a>
+          <a routerLink="/carrito" routerLinkActive="active">🛒 Mi Carrito</a>
+        </div>
+      </nav>
+    </div>
+
+    <!-- Identidad del usuario (RF-03) y Cierre de Sesión (RF-04) -->
+    <div class="navbar-right">
+      <div class="user-profile" *ngIf="currentUser">
+        <div class="user-avatar">{{ (currentUser.username || 'U')[0].toUpperCase() }}</div>
+        <div class="user-meta">
+          <span class="user-name">{{ currentUser.username }}</span>
+          <span
+            [class]="isAdmin() ? 'user-role badge badge-primary' : 'user-role badge badge-success'"
+          >
+            {{ isAdmin() ? 'Administrador' : 'Vendedor' }}
+          </span>
+        </div>
+      </div>
+      <button class="btn-logout" (click)="logout()" title="Cerrar Sesión">
+        <span>Cerrar Sesión</span> 
+      </button>
+    </div>
+  </header>
+
+  <!-- Contenido dinámico principal -->
+  <main class="content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

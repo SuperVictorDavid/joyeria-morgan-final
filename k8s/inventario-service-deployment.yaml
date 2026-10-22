@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventario-service
+  labels:
+    app: inventario-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventario-service
+  template:
+    metadata:
+      labels:
+        app: inventario-service
+    spec:
+      containers:
+      - name: inventario-service
+        image: joyeria/inventario-service:1.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"

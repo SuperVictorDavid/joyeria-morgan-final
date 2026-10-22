@@ -1,0 +1,192 @@
+<div class="content-container inv-page">
+  <div class="header-section">
+    <div>
+      <h2>Inventario de Productos</h2>
+      <p class="subtitle">Gestiona el inventario de joyas</p>
+    </div>
+    <button *ngIf="auth.isAdmin()" class="btn-primary" (click)="abrir()">+ Nuevo Producto</button>
+  </div>
+
+  <div class="stats-grid inv-stats">
+    <div class="stat-card">
+      <div class="stat-icon icon-purple">💎</div>
+      <div class="stat-info"><h4>Total Productos</h4><span class="stat-value">{{ total }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-green">✅</div>
+      <div class="stat-info"><h4>Disponibles</h4><span class="stat-value">{{ disponibles }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-red">🛒</div>
+      <div class="stat-info"><h4>Agotados / Vendidos</h4><span class="stat-value">{{ agotados }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-orange">$</div>
+      <div class="stat-info"><h4>Valor Inventario S/</h4><span class="stat-value">S/ {{ valor | number:'1.2-2' }}</span></div>
+    </div>
+  </div>
+
+  <div class="filter-card">
+    <div class="filter-grid">
+      <div class="filter-field search-field">
+        <label>Buscar Producto</label>
+        <input class="search-input" [(ngModel)]="filtro" (ngModelChange)="pagina=1" placeholder="Buscar por descripción o ID..." />
+      </div>
+      <div class="filter-field">
+        <label>Tipo</label>
+        <select class="filter-select" [(ngModel)]="filtroTipo" (ngModelChange)="pagina=1">
+          <option>Todos</option>
+          <option>Anillo</option>
+          <option>Cadena</option>
+          <option>Pulsera</option>
+          <option>Aretes</option>
+          <option>Dije</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Material</label>
+        <select class="filter-select" [(ngModel)]="filtroMaterial" (ngModelChange)="pagina=1">
+          <option>Todos</option>
+          <option>Oro</option>
+          <option>Plata</option>
+          <option>Platino</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Estado</label>
+        <select class="filter-select" [(ngModel)]="filtroEstado" (ngModelChange)="pagina=1">
+          <option>Todos</option>
+          <option>Disponible</option>
+          <option>Vendido</option>
+          <option>Reservado</option>
+        </select>
+      </div>
+      <div class="filter-field filter-btn-field">
+        <button class="btn-secondary btn-limpiar" (click)="limpiarFiltros()">Limpiar</button>
+      </div>
+    </div>
+    <p class="filter-count">{{ filtradas.length }} productos encontrados</p>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table inv-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Tipo</th><th>Material</th><th>Descripción</th><th>Quilates</th><th>Peso</th><th>Stock</th><th>Precio</th><th>Estado</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let j of paginadas">
+          <td class="cell-id">{{ j.id }}</td>
+          <td><span class="badge badge-tipo">{{ j.tipoProducto }}</span></td>
+          <td>
+            <span class="badge" [ngClass]="{
+              'badge-oro': j.tipoMaterial === 'Oro',
+              'badge-plata': j.tipoMaterial === 'Plata',
+              'badge-platino': j.tipoMaterial === 'Platino'
+            }">{{ j.tipoMaterial }}</span>
+          </td>
+          <td class="cell-desc">{{ j.descripcion || j.name }}</td>
+          <td><span class="badge badge-quilates" *ngIf="j.quilates != null">{{ j.quilates | number:'1.1-1' }}K</span><span *ngIf="j.quilates == null" class="text-muted">—</span></td>
+          <td class="cell-peso">{{ j.peso != null ? (j.peso | number:'1.2-2') + 'g' : '—' }}</td>
+          <td><span class="badge badge-stock">{{ j.stock }}</span></td>
+          <td class="cell-precio">S/ {{ j.price | number:'1.2-2' }}</td>
+          <td>
+            <span class="pill" [ngClass]="{
+              'pill-disponible': estadoDe(j) === 'Disponible',
+              'pill-vendido': estadoDe(j) === 'Vendido',
+              'pill-reservado': estadoDe(j) === 'Reservado'
+            }">{{ estadoDe(j) }}</span>
+          </td>
+          <td>
+            <div class="actions">
+              <button class="btn-icon" title="Agregar al carrito" (click)="agregarAlCarrito(j)">🛒</button>
+              <button class="btn-icon" title="Ver" (click)="ver(j)">👁</button>
+              <button *ngIf="auth.isAdmin()" class="btn-icon" title="Editar" (click)="abrir(j)">✏️</button>
+              <button *ngIf="auth.isAdmin()" class="btn-icon danger" title="Eliminar" (click)="eliminar(j.id)">🗑</button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="filtradas.length === 0">
+          <td colspan="10" class="empty-row">No se encontraron productos</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination" *ngIf="totalPaginas > 1">
+    <button class="page-btn" (click)="anterior()" [disabled]="pagina === 1">‹ Anterior</button>
+    <button *ngFor="let p of paginas" class="page-btn" [class.active]="p === pagina" (click)="irA(p)">{{ p }}</button>
+    <button class="page-btn" (click)="siguiente()" [disabled]="pagina === totalPaginas">Siguiente ›</button>
+  </div>
+</div>
+
+<!-- Modal Nuevo / Editar -->
+<div class="modal-overlay" *ngIf="isModalOpen">
+  <div class="modal-content inv-modal">
+    <div class="inv-modal-header">
+      <h3>{{ isEditMode ? 'Editar Producto' : 'Registrar Nuevo Producto' }}</h3>
+      <button class="modal-close" (click)="cerrar()">✕</button>
+    </div>
+    <div class="inv-modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo de Producto</label>
+          <select [(ngModel)]="nueva.tipoProducto">
+            <option>Anillo</option><option>Cadena</option><option>Pulsera</option><option>Aretes</option><option>Dije</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Material</label>
+          <select [(ngModel)]="nueva.tipoMaterial">
+            <option>Oro</option><option>Plata</option><option>Platino</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <input [(ngModel)]="nueva.descripcion" placeholder="Ej. Anillo de oro 18K" />
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quilates</label><input type="number" step="0.1" min="0" [(ngModel)]="nueva.quilates" placeholder="18" /></div>
+        <div class="form-group"><label>Peso (g)</label><input type="number" step="0.01" min="0" [(ngModel)]="nueva.peso" placeholder="120.00" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Cantidad / Stock</label><input type="number" min="0" [(ngModel)]="nueva.stock" placeholder="10" /></div>
+        <div class="form-group"><label>Precio Venta (S/)</label><input type="number" step="0.01" min="0" [(ngModel)]="nueva.price" placeholder="280.00" /></div>
+      </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select [(ngModel)]="nueva.estado">
+          <option>Disponible</option><option>Vendido</option><option>Reservado</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" (click)="cerrar()">Cancelar</button>
+      <button class="btn-primary" (click)="guardar()">{{ isEditMode ? 'Guardar Cambios' : 'Guardar Producto' }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ver detalle -->
+<div class="modal-overlay" *ngIf="isViewOpen && verJoya">
+  <div class="modal-content inv-modal">
+    <div class="inv-modal-header">
+      <h3>Detalle del Producto #{{ verJoya.id }}</h3>
+      <button class="modal-close" (click)="cerrarVer()">✕</button>
+    </div>
+    <div class="inv-modal-body detail-grid">
+      <p><strong>Tipo:</strong> {{ verJoya.tipoProducto }}</p>
+      <p><strong>Material:</strong> {{ verJoya.tipoMaterial }}</p>
+      <p><strong>Descripción:</strong> {{ verJoya.descripcion || verJoya.name }}</p>
+      <p><strong>Quilates:</strong> {{ verJoya.quilates != null ? (verJoya.quilates | number:'1.1-1') + 'K' : '—' }}</p>
+      <p><strong>Peso:</strong> {{ verJoya.peso != null ? (verJoya.peso | number:'1.2-2') + 'g' : '—' }}</p>
+      <p><strong>Stock:</strong> {{ verJoya.stock }}</p>
+      <p><strong>Precio:</strong> S/ {{ verJoya.price | number:'1.2-2' }}</p>
+      <p><strong>Estado:</strong> {{ estadoDe(verJoya) }}</p>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" (click)="cerrarVer()">Cerrar</button>
+    </div>
+  </div>
+</div>

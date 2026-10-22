@@ -1,0 +1,7 @@
+<router-outlet></router-outlet>
+<div class="toast-container" *ngIf="toasts.length > 0">
+  <div *ngFor="let toast of toasts" [class]="'toast-item ' + toast.type">
+    <span>{{ toast.text }}</span>
+    <button class="toast-close" (click)="removeToast(toast.id)">×</button>
+  </div>
+</div>

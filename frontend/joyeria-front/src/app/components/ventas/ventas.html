@@ -1,0 +1,114 @@
+<div class="content-container ventas-page">
+  <!-- Header verde estilo Morga -->
+  <div class="ventas-header">
+    <div>
+      <h2>🧾 Historial de Ventas</h2>
+      <p>Boletas emitidas y registradas en el sistema</p>
+    </div>
+    <a routerLink="/carrito" class="btn-nueva-venta">＋ Nueva Venta</a>
+  </div>
+
+  <!-- 4 stat cards -->
+  <div class="stats-grid ventas-stats">
+    <div class="stat-card">
+      <div class="stat-icon icon-blue">📅</div>
+      <div class="stat-info"><h4>Ventas Hoy</h4><span class="stat-value">{{ ventasHoy }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-green">🧾</div>
+      <div class="stat-info"><h4>Total Ventas Filtradas</h4><span class="stat-value">{{ totalFiltradas }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-orange">💰</div>
+      <div class="stat-info"><h4>Monto Total S/</h4><span class="stat-value">S/ {{ montoTotal | number:'1.2-2' }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-purple">📊</div>
+      <div class="stat-info"><h4>Promedio por Venta</h4><span class="stat-value">S/ {{ promedio | number:'1.2-2' }}</span></div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filter-card">
+    <div class="filter-grid">
+      <div class="filter-field">
+        <label>Fecha Desde</label>
+        <input type="date" class="search-input" [(ngModel)]="fechaDesde" />
+      </div>
+      <div class="filter-field">
+        <label>Fecha Hasta</label>
+        <input type="date" class="search-input" [(ngModel)]="fechaHasta" />
+      </div>
+      <div class="filter-field">
+        <label>Cliente</label>
+        <select class="filter-select" [(ngModel)]="filtroCliente">
+          <option value="Todos">Todos</option>
+          <option *ngFor="let cid of clienteIds" [value]="cid">{{ nombreCliente(cid) }}</option>
+        </select>
+      </div>
+      <div class="filter-field filter-btn-group">
+        <button class="btn-primary" (click)="filtrar()">Filtrar</button>
+        <button class="btn-secondary" (click)="limpiar()">Limpiar</button>
+      </div>
+    </div>
+    <p class="filter-count">{{ filtradas.length }} ventas encontradas</p>
+  </div>
+
+  <!-- Tabla -->
+  <div class="table-container">
+    <table class="data-table ventas-table">
+      <thead>
+        <tr>
+          <th>N° Boleta</th><th>Joya</th><th>Fecha y Hora</th><th>Cliente</th><th>Vendedor</th><th>Total</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let v of paginadas">
+          <td><span class="pill pill-boleta">{{ v.numeroBoleta || ('BOL-' + v.saleId) }}</span></td>
+          <td>{{ nombreJoya(v.productId) }}<span class="muted-cant"> x{{ v.quantity }}</span></td>
+          <td class="cell-fecha">{{ v.fechaVenta ? (v.fechaVenta | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
+          <td>{{ nombreCliente(v.customerId) }}</td>
+          <td><span class="pill pill-vendedor">{{ v.vendedor || '—' }}</span></td>
+          <td class="cell-total">S/ {{ (v.total ?? 0) | number:'1.2-2' }}</td>
+          <td>
+            <div class="actions">
+              <button class="btn-link-detalle" (click)="verDetalle(v.saleId)">👁 Ver Detalle</button>
+              <button *ngIf="auth.isAdmin()" class="btn-icon danger" title="Eliminar" (click)="eliminar(v.saleId)">🗑</button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="filtradas.length === 0">
+          <td colspan="7" class="empty-row">No se encontraron ventas</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination" *ngIf="totalPaginas > 1">
+    <button class="page-btn" (click)="anterior()" [disabled]="pagina === 1">‹ Anterior</button>
+    <button *ngFor="let p of paginas" class="page-btn" [class.active]="p === pagina" (click)="irA(p)">{{ p }}</button>
+    <button class="page-btn" (click)="siguiente()" [disabled]="pagina === totalPaginas">Siguiente ›</button>
+  </div>
+
+  <!-- Modal boleta -->
+  <div *ngIf="detalle" class="modal-overlay">
+    <div class="modal-content modal-lg printable-voucher ventas-modal">
+      <div class="ventas-modal-header no-print">
+        <h3>🧾 Boleta {{ detalle.numeroBoleta }}</h3>
+        <button class="modal-close" (click)="cerrarDetalle()">✕</button>
+      </div>
+      <div class="ventas-modal-body">
+        <h3 class="print-only-title">🧾 Boleta {{ detalle.numeroBoleta }} — Joyería Morga</h3>
+        <p><strong>Fecha y Hora:</strong> {{ detalle.fechaVenta ? (detalle.fechaVenta | date:'dd/MM/yyyy HH:mm') : '—' }}</p>
+        <p><strong>Cliente:</strong> {{ nombreCliente(detalle.customerId) }}</p>
+        <p><strong>Vendedor:</strong> {{ detalle.vendedor || '—' }}</p>
+        <p><strong>Producto:</strong> {{ detalle.product?.descripcion || detalle.product?.name || nombreJoya(detalle.productId) }} x {{ detalle.quantity }}</p>
+        <p><strong>Total: S/ {{ (detalle.total ?? 0) | number:'1.2-2' }}</strong> | Estado: {{ detalle.status || '—' }}</p>
+      </div>
+      <div class="modal-buttons no-print">
+        <button class="btn-cancel" (click)="cerrarDetalle()">Cerrar</button>
+        <button class="btn-primary" (click)="imprimir()">🖨 Imprimir</button>
+      </div>
+    </div>
+  </div>
+</div>

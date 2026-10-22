@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reportes-service
+  labels:
+    app: reportes-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reportes-service
+  template:
+    metadata:
+      labels:
+        app: reportes-service
+    spec:
+      containers:
+      - name: reportes-service
+        image: joyeria/reportes-service:1.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8085
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"

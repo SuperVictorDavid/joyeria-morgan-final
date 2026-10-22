@@ -1,0 +1,130 @@
+/* ===== Historial de Ventas — estilo Morga (header verde) ===== */
+.ventas-header {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #fff;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.ventas-header h2 { color: #fff; margin: 0; font-size: 1.5rem; }
+.ventas-header p { color: #dcfce7; margin: 0.25rem 0 0; font-size: 0.875rem; }
+.btn-nueva-venta {
+  background: #fff;
+  color: #15803d;
+  font-weight: 700;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: 0.875rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-nueva-venta:hover { background: #f0fdf4; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+/* Stat cards */
+.ventas-stats .stat-icon { font-size: 1.4rem; font-weight: 700; }
+.icon-blue { background: #dbeafe; color: #1d4ed8; }
+.icon-green { background: #dcfce7; color: #16a34a; }
+.icon-orange { background: #ffedd5; color: #ea580c; }
+.icon-purple { background: #f3e8ff; color: #7c3aed; }
+
+/* Filtros */
+.filter-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.25rem 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.9rem;
+  align-items: end;
+}
+.filter-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.35rem;
+}
+.filter-field .search-input, .filter-field .filter-select { width: 100%; }
+.filter-btn-group { display: flex; gap: 0.5rem; }
+.filter-count { margin: 0.6rem 0 0.4rem; font-size: 0.82rem; color: var(--text-muted); }
+
+/* Tabla */
+.ventas-table thead { background: #1e293b; }
+.ventas-table thead th { color: #f8fafc; }
+.ventas-table tbody tr:hover { background: #f1f5f9; }
+.cell-fecha { color: var(--text-muted); white-space: nowrap; }
+.cell-total { color: #16a34a; font-weight: 700; white-space: nowrap; }
+.empty-row { text-align: center; color: var(--text-muted); padding: 1.5rem; }
+
+/* Pills */
+.pill {
+  display: inline-flex; align-items: center;
+  padding: 0.25rem 0.8rem; border-radius: 9999px;
+  font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+}
+.pill-boleta { background: #dbeafe; color: #1d4ed8; }
+.pill-vendedor { background: #e2e8f0; color: #475569; }
+
+/* Acciones */
+.actions { display: flex; gap: 0.4rem; align-items: center; }
+.btn-link-detalle {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-link-detalle:hover { background: #dbeafe; }
+
+/* Modal boleta con header verde */
+.ventas-modal { padding: 0; overflow: hidden; }
+.ventas-modal-header {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #fff; padding: 1rem 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.ventas-modal-header h3 { color: #fff; margin: 0; padding: 0; border: none; font-size: 1.1rem; }
+.modal-close {
+  background: rgba(255,255,255,0.2); border: none; color: #fff;
+  border-radius: 6px; padding: 0.25rem 0.6rem; cursor: pointer; font-size: 1rem;
+}
+.modal-close:hover { background: rgba(255,255,255,0.35); }
+.ventas-modal-body { padding: 1.5rem; }
+.ventas-modal-body p { margin-bottom: 0.5rem; font-size: 0.9rem; }
+.ventas-modal .modal-buttons { margin: 0; padding: 1rem 1.5rem 1.5rem; border: none; }
+.print-only-title { display: none; }
+
+@media print {
+  .print-only-title { display: block; }
+}
+
+/* Paginación */
+.pagination{display:flex;gap:.35rem;justify-content:center;align-items:center;margin:1rem 0 .5rem;flex-wrap:wrap}
+.page-btn{border:1px solid #cbd5e1;background:#fff;color:#2563eb;border-radius:6px;padding:.4rem .8rem;font-weight:600;cursor:pointer}
+.page-btn:hover:not(:disabled){background:#eff6ff}
+.page-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.page-btn:disabled{opacity:.5;cursor:not-allowed}
+
+@media (max-width: 900px) {
+  .filter-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .filter-grid { grid-template-columns: 1fr; }
+}

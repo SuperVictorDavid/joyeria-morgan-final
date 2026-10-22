@@ -1,0 +1,95 @@
+/* ===== Generador de Reportes PDF — header rojo + cards de colores ===== */
+.reportes-header {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  color: #fff;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.reportes-header h2 { color: #fff; margin: 0; font-size: 1.5rem; }
+.reportes-header p { color: #fecaca; margin: 0.25rem 0 0; font-size: 0.875rem; }
+
+.reportes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.reporte-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  border-top: 4px solid #cbd5e1;
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.card-azul { border-top-color: #2563eb; }
+.card-amarillo { border-top-color: #eab308; }
+.card-verde { border-top-color: #16a34a; }
+.card-celeste { border-top-color: #06b6d4; }
+
+.reporte-card-header { display: flex; align-items: center; gap: 0.6rem; }
+.reporte-card-header h3 { font-size: 1rem; font-weight: 700; margin: 0; padding: 0; border: none; }
+.reporte-icon { font-size: 1.5rem; }
+.reporte-desc { font-size: 0.82rem; color: var(--text-muted); margin: 0 0 0.5rem; }
+
+.inventario-conteo {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.5rem;
+}
+.conteo-numero { font-size: 1.6rem; font-weight: 800; color: #15803d; }
+.conteo-label { font-size: 0.82rem; color: var(--text-muted); }
+
+.btn-generar {
+  margin-top: auto;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  transition: all 0.15s ease;
+}
+.btn-azul { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.btn-azul:hover { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
+.btn-amarillo { background: linear-gradient(135deg, #eab308, #ca8a04); }
+.btn-amarillo:hover { background: linear-gradient(135deg, #ca8a04, #a16207); }
+.btn-verde { background: linear-gradient(135deg, #16a34a, #15803d); }
+.btn-verde:hover { background: linear-gradient(135deg, #15803d, #166534); }
+.btn-celeste { background: linear-gradient(135deg, #06b6d4, #0284c7); }
+.btn-celeste:hover { background: linear-gradient(135deg, #0284c7, #0369a1); }
+
+/* Modal */
+.reportes-modal { padding: 0; overflow: hidden; }
+.reportes-modal-header {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  color: #fff; padding: 1rem 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.reportes-modal-header h3 { color: #fff; margin: 0; padding: 0; border: none; font-size: 1.1rem; }
+.modal-close {
+  background: rgba(255,255,255,0.2); border: none; color: #fff;
+  border-radius: 6px; padding: 0.25rem 0.6rem; cursor: pointer; font-size: 1rem;
+}
+.modal-close:hover { background: rgba(255,255,255,0.35); }
+.reportes-modal-body { padding: 1.5rem; }
+.modal-subtitulo { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
+.total-row td { background: #f8fafc; font-size: 0.9rem; }
+.reportes-modal .modal-buttons { margin: 0; padding: 1rem 1.5rem 1.5rem; border: none; }
+.empty-row { text-align: center; color: var(--text-muted); padding: 1.5rem; }
+.print-only-title { display: none; }
+
+@media print {
+  .print-only-title { display: block; }
+}

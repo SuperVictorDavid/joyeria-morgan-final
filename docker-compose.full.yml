@@ -1,0 +1,113 @@
+# Joyería Morgan - compose full (U2 Docker/K8s + U1/U3)
+# Uso: docker compose -f docker-compose.full.yml up -d --build
+# Requiere jars: ./gradlew bootJar en backend/* y ./mvnw package en infra/*
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: joyeria-mysql-full
+    environment:
+      MYSQL_DATABASE: joyeria_db
+      MYSQL_USER: app
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+    ports:
+      - "5510:3306"
+    volumes:
+      - joyeria-full-db:/var/lib/mysql
+    networks:
+      - net-joyeria
+
+  eureka-server:
+    build: ./infra/eureka-server
+    container_name: joyeria-eureka
+    ports:
+      - "8761:8761"
+    networks:
+      - net-joyeria
+
+  config-server:
+    build: ./infra/config-server
+    container_name: joyeria-config
+    ports:
+      - "8888:8888"
+    networks:
+      - net-joyeria
+
+  auth-service:
+    build: ./backend/auth-service
+    container_name: joyeria-auth
+    ports:
+      - "8083:8083"
+    depends_on:
+      - mysql
+      - eureka-server
+    networks:
+      - net-joyeria
+
+  clientes-service:
+    build: ./backend/clientes-service
+    container_name: joyeria-clientes
+    ports:
+      - "8084:8084"
+    depends_on:
+      - mysql
+      - eureka-server
+    networks:
+      - net-joyeria
+
+  inventario-service:
+    build: ./backend/inventario-service
+    container_name: joyeria-inventario
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mysql
+      - eureka-server
+    networks:
+      - net-joyeria
+
+  ventas-service:
+    build: ./backend/ventas-service
+    container_name: joyeria-ventas
+    ports:
+      - "8082:8082"
+    depends_on:
+      - mysql
+      - eureka-server
+      - inventario-service
+    networks:
+      - net-joyeria
+
+  reportes-service:
+    build: ./backend/reportes-service
+    container_name: joyeria-reportes
+    ports:
+      - "8085:8085"
+    depends_on:
+      - eureka-server
+      - inventario-service
+      - ventas-service
+      - clientes-service
+    networks:
+      - net-joyeria
+
+  api-gateway:
+    build: ./infra/api-gateway
+    container_name: joyeria-gateway
+    ports:
+      - "8762:8762"
+    depends_on:
+      - eureka-server
+      - auth-service
+      - clientes-service
+      - inventario-service
+      - ventas-service
+      - reportes-service
+    networks:
+      - net-joyeria
+
+volumes:
+  joyeria-full-db:
+networks:
+  net-joyeria:
+    name: net-joyeria

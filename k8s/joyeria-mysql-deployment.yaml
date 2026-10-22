@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: joyeria-mysql
+  labels:
+    app: joyeria-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: joyeria-mysql
+  template:
+    metadata:
+      labels:
+        app: joyeria-mysql
+    spec:
+      containers:
+      - name: joyeria-mysql
+        image: mysql:8.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_DATABASE
+          value: "joyeria_db"
+        - name: MYSQL_USER
+          value: "app"
+        - name: MYSQL_PASSWORD
+          value: "password"
+        - name: MYSQL_ROOT_PASSWORD
+          value: "password"

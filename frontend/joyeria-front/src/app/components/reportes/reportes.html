@@ -1,0 +1,124 @@
+<div class="content-container reportes-page">
+  <!-- Header rojo -->
+  <div class="reportes-header">
+    <div>
+      <h2>📄 Generador de Reportes PDF</h2>
+      <p>Genera reportes de ventas, productos e inventario e imprímelos o guárdalos como PDF desde el navegador.</p>
+    </div>
+  </div>
+
+  <div class="reportes-grid">
+    <!-- Card 1: Ventas por período (azul) -->
+    <div class="reporte-card card-azul">
+      <div class="reporte-card-header">
+        <span class="reporte-icon">📅</span>
+        <h3>Reporte de Ventas por Período</h3>
+      </div>
+      <p class="reporte-desc">Ventas filtradas por rango de fechas y cliente.</p>
+      <div class="form-group">
+        <label>Fecha Desde</label>
+        <input type="date" [(ngModel)]="repVentasDesde" />
+      </div>
+      <div class="form-group">
+        <label>Fecha Hasta</label>
+        <input type="date" [(ngModel)]="repVentasHasta" />
+      </div>
+      <div class="form-group">
+        <label>Cliente</label>
+        <select [(ngModel)]="repVentasCliente">
+          <option value="Todos">Todos</option>
+          <option *ngFor="let c of clientes" [value]="c">Cliente {{ c }}</option>
+        </select>
+      </div>
+      <button class="btn-generar btn-azul" (click)="generarReporteVentas()">📄 Generar Reporte</button>
+    </div>
+
+    <!-- Card 2: Productos vendidos (amarillo) -->
+    <div class="reporte-card card-amarillo">
+      <div class="reporte-card-header">
+        <span class="reporte-icon">💎</span>
+        <h3>Reporte de Productos Vendidos</h3>
+      </div>
+      <p class="reporte-desc">Cantidades y montos por producto vendido.</p>
+      <div class="form-group">
+        <label>Fecha Desde</label>
+        <input type="date" [(ngModel)]="repProdDesde" />
+      </div>
+      <div class="form-group">
+        <label>Fecha Hasta</label>
+        <input type="date" [(ngModel)]="repProdHasta" />
+      </div>
+      <button class="btn-generar btn-amarillo" (click)="generarReporteProductos()">📄 Generar Reporte</button>
+    </div>
+
+    <!-- Card 3: Inventario (verde) -->
+    <div class="reporte-card card-verde">
+      <div class="reporte-card-header">
+        <span class="reporte-icon">📦</span>
+        <h3>Reporte de Inventario</h3>
+      </div>
+      <p class="reporte-desc">Stock actual de productos en inventario.</p>
+      <div class="inventario-conteo">
+        <span class="conteo-numero">{{ conteoInventario }}</span>
+        <span class="conteo-label">productos registrados</span>
+      </div>
+      <button class="btn-generar btn-verde" (click)="generarReporteInventario()">📄 Generar Reporte</button>
+    </div>
+
+    <!-- Card 4: Ventas por vendedor (celeste) -->
+    <div class="reporte-card card-celeste">
+      <div class="reporte-card-header">
+        <span class="reporte-icon">🧑‍💼</span>
+        <h3>Reporte de Ventas por Vendedor</h3>
+      </div>
+      <p class="reporte-desc">Ventas filtradas por vendedor.</p>
+      <div class="form-group">
+        <label>Vendedor</label>
+        <select [(ngModel)]="repVendedor">
+          <option value="Todos">Todos</option>
+          <option *ngFor="let v of vendedores" [value]="v">{{ v }}</option>
+        </select>
+      </div>
+      <button class="btn-generar btn-celeste" (click)="generarReporteVendedor()">📄 Generar Reporte</button>
+    </div>
+  </div>
+
+  <!-- Modal resumen + imprimir -->
+  <div *ngIf="modal" class="modal-overlay">
+    <div class="modal-content modal-lg printable-voucher reportes-modal">
+      <div class="reportes-modal-header no-print">
+        <h3>📄 {{ modal.titulo }}</h3>
+        <button class="modal-close" (click)="cerrarModal()">✕</button>
+      </div>
+      <div class="reportes-modal-body">
+        <h3 class="print-only-title">{{ modal.titulo }} — Joyería Morga</h3>
+        <p class="modal-subtitulo">{{ modal.subtitulo }}</p>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr><th *ngFor="let h of modal.encabezados">{{ h }}</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let f of modal.filas">
+                <td *ngFor="let c of f">{{ c }}</td>
+              </tr>
+              <tr *ngIf="modal.filas.length === 0">
+                <td [attr.colspan]="modal.encabezados.length" class="empty-row">Sin registros</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td [attr.colspan]="modal.encabezados.length - 1"><strong>{{ modal.totalLabel }}</strong></td>
+                <td><strong>{{ modal.totalValor }}</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="modal-buttons no-print">
+        <button class="btn-cancel" (click)="cerrarModal()">Cerrar</button>
+        <button class="btn-primary" (click)="imprimir()">🖨 Imprimir / Guardar PDF</button>
+      </div>
+    </div>
+  </div>
+</div>

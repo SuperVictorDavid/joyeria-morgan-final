@@ -1,0 +1,107 @@
+<div class="content-container inv-page">
+  <div class="header-section">
+    <div>
+      <h2>👥 Gestión de Clientes</h2>
+      <p class="subtitle">Administra tu base de datos de clientes</p>
+    </div>
+    <button class="btn-primary" (click)="abrir()">+ Registrar Cliente</button>
+  </div>
+
+  <div class="stats-grid inv-stats">
+    <div class="stat-card">
+      <div class="stat-icon icon-purple">👥</div>
+      <div class="stat-info"><h4>Total Clientes</h4><span class="stat-value">{{ total }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-green">🔒</div>
+      <div class="stat-info"><h4>Activos</h4><span class="stat-value">{{ activos }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-orange">✉️</div>
+      <div class="stat-info"><h4>Con Email</h4><span class="stat-value">{{ conEmail }}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon icon-red">📞</div>
+      <div class="stat-info"><h4>Con Teléfono</h4><span class="stat-value">{{ conTelefono }}</span></div>
+    </div>
+  </div>
+
+  <div class="filter-card">
+    <div class="filter-grid" style="grid-template-columns: 3fr auto;">
+      <div class="filter-field search-field">
+        <label>🔍 Buscar Cliente</label>
+        <input class="search-input" [(ngModel)]="filtro" (ngModelChange)="pagina=1" placeholder="Buscar por nombre, DNI, email o teléfono..." />
+      </div>
+      <div class="filter-field filter-btn-field">
+        <button class="btn-secondary btn-limpiar" (click)="filtro=''; pagina=1">✕ Limpiar</button>
+      </div>
+    </div>
+    <p class="filter-count">{{ filtrados.length }} clientes registrados</p>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table inv-table">
+      <thead>
+        <tr><th>ID</th><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Email</th><th>Dirección</th><th>Fecha Registro</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of paginados">
+          <td class="cell-id">{{ c.customerId }}</td>
+          <td class="cell-desc">👤 {{ c.nombre }}</td>
+          <td><span class="badge badge-stock">{{ c.dni || '—' }}</span></td>
+          <td class="cell-peso">📞 {{ c.telefono || '—' }}</td>
+          <td>✉️ {{ c.email }}</td>
+          <td>📍 {{ c.direccion || '—' }}</td>
+          <td class="cell-fecha">{{ c.fechaRegistro ? (c.fechaRegistro | date:'dd/MM/yyyy') : '—' }}</td>
+          <td>
+            <div class="actions">
+              <button class="btn-icon" title="Ver" (click)="ver=c">👁</button>
+              <button class="btn-icon" title="Editar" (click)="abrir(c)">✏️</button>
+              <button *ngIf="auth.isAdmin()" class="btn-icon danger" title="Eliminar" (click)="eliminar(c.customerId)">🗑</button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="paginados.length === 0">
+          <td colspan="8" class="empty-row">No se encontraron clientes</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination" *ngIf="totalPaginas > 1">
+    <button class="page-btn" (click)="anterior()" [disabled]="pagina === 1">‹ Anterior</button>
+    <button *ngFor="let p of paginas" class="page-btn" [class.active]="p === pagina" (click)="irA(p)">{{ p }}</button>
+    <button class="page-btn" (click)="siguiente()" [disabled]="pagina === totalPaginas">Siguiente ›</button>
+  </div>
+</div>
+<div class="modal-overlay" *ngIf="isModalOpen">
+  <div class="modal-content inv-modal">
+    <div class="inv-modal-header">
+      <h3>👤 {{ isEditMode ? 'Editar Cliente' : 'Registrar Nuevo Cliente' }}</h3>
+      <button class="modal-close" (click)="cerrar()">✕</button>
+    </div>
+    <div class="inv-modal-body">
+      <div class="form-group"><label>Nombre Completo *</label><input [(ngModel)]="form.nombre" placeholder="Ej. Juan Pérez" /></div>
+      <div class="form-row">
+        <div class="form-group"><label>DNI *</label><input [(ngModel)]="form.dni" placeholder="8 dígitos" maxlength="8" inputmode="numeric" (input)="soloNumeros($event, 'dni', 8)" /></div>
+        <div class="form-group"><label>Teléfono</label><input [(ngModel)]="form.telefono" placeholder="987654321" maxlength="9" inputmode="numeric" (input)="soloNumeros($event, 'telefono', 9)" /></div>
+      </div>
+      <div class="form-group"><label>Email *</label><input [(ngModel)]="form.email" placeholder="correo@ejemplo.com" /></div>
+      <div class="form-group"><label>Dirección</label><input [(ngModel)]="form.direccion" placeholder="Av. Principal #123" /></div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-secondary" (click)="cerrar()">← Cancelar</button>
+      <button class="btn-primary" (click)="guardar()">💾 {{ isEditMode ? 'Actualizar' : 'Guardar Cliente' }}</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" *ngIf="ver">
+  <div class="modal-content inv-modal">
+    <div class="inv-modal-header"><h3>👤 {{ ver.nombre }}</h3><button class="modal-close" (click)="ver=null">✕</button></div>
+    <div class="inv-modal-body detail-grid">
+      <p><strong>DNI:</strong> {{ ver.dni || '—' }} | <strong>Tel:</strong> {{ ver.telefono || '—' }}</p>
+      <p><strong>Email:</strong> {{ ver.email }}</p>
+      <p><strong>Dirección:</strong> {{ ver.direccion || '—' }} | <strong>Estado:</strong> {{ ver.status }} | <strong>Registro:</strong> {{ ver.fechaRegistro ? (ver.fechaRegistro | date:'dd/MM/yyyy') : '—' }}</p>
+    </div>
+    <div class="modal-buttons"><button class="btn-secondary" (click)="ver=null">Cerrar</button></div>
+  </div>
+</div>

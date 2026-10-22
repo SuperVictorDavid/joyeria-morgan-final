@@ -1,0 +1,1230 @@
+{
+  "info": {
+    "_postman_id": "joyeria-morgan-demo-04697",
+    "name": "Joyeria Morgan - DEMO 10 min",
+    "description": "Version corta para la exposicion: 31 peticiones en 9 carpetas.\nLa v2 completa (74 peticiones) queda como respaldo y evidencia.\n\nGUION SUGERIDO (10 min)\n  1. Seguridad y roles (2 min) ........... 01\n  2. CRUD inventario y clientes (2 min) .. 02 + 03\n  3. Venta + Feign + Kafka (2 min) ....... 04\n  4. Resiliencia (1 min) ................. 05\n  5. RabbitMQ y stock final (1 min) ...... 06\n  6. Eureka + gateway + reportes (1 min) . 07\n  7. Observabilidad (30 s) ............... 08\n  8. Limpieza (30 s) ..................... 09\n\nANTES DE EXPONER\n  - Docker arriba y los 5 backends + Eureka + gateway + config-server arriba.\n  - Postman: environment en \"No Environment\".\n  - Un \"Run\" completo tarda ~6 s y deja la BD igual (27 joyas, 21 ventas, 13 clientes, 5 usuarios).\n\nSi el tiempo aprieta, se pueden saltar sin romper nada: 02, 03 y 08.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. Seguridad y roles (T4)",
+      "description": "Login JWT, peticiones sin token y autorizacion por rol: el vendedor vende, pero no administra.",
+      "item": [
+        {
+          "name": "Login admin - Obtener JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Devuelve token + tipo', () => {",
+                  "    pm.expect(res.token).to.be.a('string');",
+                  "    pm.expect(res.tokenType).to.be.a('string');",
+                  "});",
+                  "pm.test('El JWT tiene 3 segmentos (header.payload.signature)', () => pm.expect(res.token.split('.')).to.have.lengthOf(3));",
+                  "pm.test('El JWT no esta expirado', () => {",
+                  "    const b64 = res.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "    const payload = JSON.parse(atob(b64));",
+                  "    pm.expect(payload.exp * 1000).to.be.above(Date.now());",
+                  "    pm.expect(payload.role).to.eql('ADMIN');",
+                  "    console.log('JWT sub=' + payload.sub + ' role=' + payload.role + ' expira=' + new Date(payload.exp * 1000).toISOString());",
+                  "});",
+                  "pm.collectionVariables.set('jwt_token', res.token);",
+                  "if (pm.environment.name) {",
+                  "    pm.environment.set('jwt_token', res.token);",
+                  "    console.log('Token guardado tambien en el environment \"' + pm.environment.name + '\", que tiene prioridad sobre la coleccion.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{authUrl}}/auth/login",
+            "description": "POST /auth/login con admin/admin123. Los tests validan las 3 partes del JWT, los claims (sub, userId, role, exp) y que no este expirado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUser}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login vendedor - Obtener JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('El rol del token es VENDEDOR', () => {",
+                  "    const b64 = res.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "    pm.expect(JSON.parse(atob(b64)).role).to.eql('VENDEDOR');",
+                  "});",
+                  "pm.collectionVariables.set('jwt_vendedor', res.token);",
+                  "if (pm.environment.name) { pm.environment.set('jwt_vendedor', res.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{authUrl}}/auth/login",
+            "description": "Segundo usuario (vendedor/vendedor123). Su token se guarda aparte para probar los permisos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{vendedorUser}}\",\n  \"password\": \"{{vendedorPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Acceso SIN token (debe rechazar)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Denegado sin token (403)', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products",
+            "description": "Misma peticion sin header Authorization: el filtro corta antes del controlador y responde 403.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VENDEDOR - Listar joyas (permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Devuelve un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products",
+            "description": "El vendedor necesita el catalogo para vender: 200.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_vendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VENDEDOR - Crear joya (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403: el vendedor no puede crear productos', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventarioUrl}}/products",
+            "description": "Alta de producto reservada al ADMIN: 403, y el producto NO se crea.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Joya no autorizada {{runId}}\",\n  \"descripcion\": \"No debe crearse\",\n  \"tipoProducto\": \"Anillo\",\n  \"tipoMaterial\": \"Oro\",\n  \"quilates\": 18.0,\n  \"peso\": 1.0,\n  \"price\": 1.00,\n  \"stock\": 1,\n  \"estado\": \"Disponible\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_vendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VENDEDOR - Ver reportes (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403: el vendedor no accede a reportes', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{reportesUrl}}/reports/resumen",
+            "description": "Los reportes son informacion gerencial: 403 para VENDEDOR.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_vendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar usuarios (JWT valido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const tokenEfectivo = pm.variables.get('jwt_token');",
+                  "pm.test('Hay token efectivo (si falla: ejecuta antes Login admin)', () => {",
+                  "    pm.expect(tokenEfectivo, 'jwt_token vacio: corre \"Login admin - Obtener JWT\" o desactiva el environment').to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('El token efectivo no esta vencido', () => {",
+                  "    if (!tokenEfectivo || tokenEfectivo.split('.').length !== 3) { return; }",
+                  "    const b64 = tokenEfectivo.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "    pm.expect(JSON.parse(atob(b64)).exp * 1000, 'token vencido: vuelve a ejecutar Login admin').to.be.above(Date.now());",
+                  "});",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Devuelve un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('Incluye al usuario admin', () => {",
+                  "    pm.expect(pm.response.json().map(u => u.username)).to.include('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{authUrl}}/users",
+            "description": "El ADMIN si puede: 200 y listado completo de usuarios."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02. CRUD inventario (8081)",
+      "description": "CRUD completo contra inventario-service: crear, listar, actualizar y eliminar.",
+      "item": [
+        {
+          "name": "Listar joyas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Devuelve un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('El catalogo no esta vacio', () => pm.expect(pm.response.json().length).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products",
+            "description": "GET /products: catalogo completo."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear joya temporal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200/201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const res = pm.response.json();",
+                  "pm.test('Devuelve id y nombre correctos', () => {",
+                  "    pm.expect(res.id).to.be.a('number');",
+                  "    pm.expect(res.name).to.eql('Joya QA ' + pm.collectionVariables.get('runId'));",
+                  "});",
+                  "pm.collectionVariables.set('newProductId', res.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventarioUrl}}/products",
+            "description": "POST /products con nombre unico por corrida (runId) para no chocar con datos reales.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Joya QA {{runId}}\",\n  \"descripcion\": \"Registro temporal generado por Postman\",\n  \"tipoProducto\": \"Anillo\",\n  \"tipoMaterial\": \"Oro\",\n  \"quilates\": 18.0,\n  \"peso\": 5.5,\n  \"price\": 1000.00,\n  \"stock\": 50,\n  \"estado\": \"Disponible\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar joya (precio y stock)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('El precio actualizado se refleja en la respuesta', () => pm.expect(Number(pm.response.json().price)).to.eql(1200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventarioUrl}}/products/{{newProductId}}",
+            "description": "PUT /products/{id}: cambia precio y stock y lo verifica.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Joya QA {{runId}}\",\n  \"descripcion\": \"Registro temporal actualizado por Postman\",\n  \"tipoProducto\": \"Anillo\",\n  \"tipoMaterial\": \"Oro\",\n  \"quilates\": 18.0,\n  \"peso\": 5.5,\n  \"price\": 1200.00,\n  \"stock\": 45,\n  \"estado\": \"Disponible\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar joya",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204 (eliminado)', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('newProductId', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{inventarioUrl}}/products/{{newProductId}}",
+            "description": "DELETE /products/{id}: 204 y la joya deja de existir."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03. CRUD clientes (8084)",
+      "description": "CRUD completo contra clientes-service. El vendedor tambien puede registrar y editar clientes.",
+      "item": [
+        {
+          "name": "Listar clientes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Devuelve un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{clientesUrl}}/customers",
+            "description": "GET /customers: listado de clientes."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear cliente temporal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200/201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const res = pm.response.json();",
+                  "pm.test('Devuelve el cliente creado', () => pm.expect(res.nombre).to.eql('Cliente QA ' + pm.collectionVariables.get('runId')));",
+                  "pm.collectionVariables.set('newCustomerId', res.customerId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{clientesUrl}}/customers",
+            "description": "POST /customers con DNI unico por corrida.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cliente QA {{runId}}\",\n  \"dni\": \"9{{runId}}\",\n  \"telefono\": \"987654321\",\n  \"direccion\": \"Av. Prueba 123\",\n  \"email\": \"cliente_{{runId}}@joyeria.pe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('El telefono actualizado se refleja', () => pm.expect(pm.response.json().telefono).to.eql('999888777'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{clientesUrl}}/customers/{{newCustomerId}}",
+            "description": "PUT /customers/{id}: actualiza telefono y direccion.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cliente QA {{runId}}\",\n  \"dni\": \"9{{runId}}\",\n  \"telefono\": \"999888777\",\n  \"direccion\": \"Av. Actualizada 456\",\n  \"email\": \"cliente_{{runId}}@joyeria.pe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204 (eliminado)', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('newCustomerId', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{clientesUrl}}/customers/{{newCustomerId}}",
+            "description": "DELETE /customers/{id}: 204. Solo el ADMIN puede eliminarlo."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04. Ventas: Feign + Kafka (T1/T2)",
+      "description": "Al crear la venta, ventas-service calcula el total por Feign y publica el movimiento en Kafka.",
+      "item": [
+        {
+          "name": "Crear joya para la venta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200/201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('saleProductId', res.id);",
+                  "pm.test('Joya de venta creada', () => pm.expect(res.stock).to.eql(100));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventarioUrl}}/products",
+            "description": "Producto con stock 100: sirve para medir el descuento asincrono.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Joya Venta QA {{runId}}\",\n  \"descripcion\": \"Producto temporal para el flujo de ventas\",\n  \"tipoProducto\": \"Anillo\",\n  \"tipoMaterial\": \"Oro\",\n  \"quilates\": 18.0,\n  \"peso\": 4.0,\n  \"price\": 1000.00,\n  \"stock\": 100,\n  \"estado\": \"Disponible\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Stock antes de la venta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('stockAntes', pm.response.json().stock);",
+                  "pm.test('Stock inicial 100', () => pm.expect(Number(pm.response.json().stock)).to.eql(100));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products/{{saleProductId}}",
+            "description": "Guarda el stock inicial en la variable {{stockAntes}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear venta - publica en Kafka (T2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Total calculado por Feign (1000 x 2 = 2000)', () => pm.expect(Number(res.total)).to.eql(2000));",
+                  "pm.test('Genera numero de boleta', () => pm.expect(res.numeroBoleta).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('newSaleId', res.saleId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ventasUrl}}/sales",
+            "description": "POST /sales: el total lo calcula ventas-service con el precio que trae de inventario por Feign.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{saleProductId}},\n  \"quantity\": 2,\n  \"customerId\": {{customerId}},\n  \"vendedor\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle con Feign (T1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Trae los datos de la joya desde inventario', () => {",
+                  "    pm.expect(res.product).to.be.an('object');",
+                  "    pm.expect(res.product.id).to.eql(Number(pm.collectionVariables.get('saleProductId')));",
+                  "});",
+                  "pm.test('El nombre de la joya es el de la venta', () => pm.expect(res.product.name).to.include('Joya Venta QA'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ventasUrl}}/sales/{{newSaleId}}/details",
+            "description": "GET /sales/{id}/details: ventas compone la respuesta con inventario y clientes."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05. Resiliencia (T5)",
+      "description": "Resilience4j protege la llamada a inventario: CircuitBreaker + Retry con fallback.",
+      "item": [
+        {
+          "name": "Detalle resiliente con Circuit Breaker (T5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200, o 503 si el circuito esta abierto', () => pm.expect([200, 503]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "    const res = pm.response.json();",
+                  "    pm.test('Responde igual que el detalle normal', () => {",
+                  "        pm.expect(res.saleId).to.eql(Number(pm.collectionVariables.get('newSaleId')));",
+                  "        pm.expect(res.product).to.be.an('object');",
+                  "    });",
+                  "    console.log('Circuito cerrado: detalle resiliente respondio 200');",
+                  "} else {",
+                  "    console.warn('Circuito OPEN: actuo el fallback (503). Se recupera en 30 s.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ventasUrl}}/sales/{{newSaleId}}/details-resiliente",
+            "description": "Con inventario sano responde 200; si falla o el circuito esta abierto, entra el fallback (503)."
+          },
+          "response": []
+        },
+        {
+          "name": "Circuit Breaker - estado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const cb = pm.response.json().circuitBreakers;",
+                  "pm.test('Existe el circuito inventario-service', () => pm.expect(cb).to.have.property('inventario-service'));",
+                  "const info = cb['inventario-service'];",
+                  "pm.test('Expone un estado valido de Resilience4j', () => pm.expect(['CLOSED', 'OPEN', 'HALF_OPEN']).to.include(info.state));",
+                  "pm.test('Expone las metricas del circuito', () => {",
+                  "    pm.expect(info).to.have.property('failureRate');",
+                  "    pm.expect(info).to.have.property('bufferedCalls');",
+                  "});",
+                  "console.log('CB inventario-service: state=' + info.state + ' failureRate=' + info.failureRate + ' bufferedCalls=' + info.bufferedCalls);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ventasUrl}}/actuator/circuitbreakers",
+            "description": "Actuator expone el estado del circuito (CLOSED/OPEN/HALF_OPEN), failureRate y bufferedCalls."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06. RabbitMQ y stock final (T2)",
+      "description": "La reserva de stock viaja por RabbitMQ; al final se comprueba el descuento total.",
+      "item": [
+        {
+          "name": "Crear venta con reserva RabbitMQ (T2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Devuelve la venta creada', () => pm.expect(res.saleId).to.be.a('number'));",
+                  "pm.collectionVariables.set('saleRabbitId', res.saleId);",
+                  "console.log('Venta Rabbit creada: ' + res.saleId + ' (total=' + res.total + ', fechaVenta=' + res.fechaVenta + ')');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ventasUrl}}/sales/rabbit-reserve",
+            "description": "POST /sales/rabbit-reserve: publica la reserva en la cola stock-reserve-queue.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{saleProductId}},\n  \"quantity\": 1,\n  \"customerId\": {{customerId}},\n  \"vendedor\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "RabbitMQ - Cola stock-reserve-queue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const q = pm.response.json();",
+                  "pm.test('Es la cola de reservas', () => pm.expect(q.name).to.eql('stock-reserve-queue'));",
+                  "pm.test('Tiene consumidor conectado', () => pm.expect(q.consumers).to.be.at.least(1));",
+                  "console.log('Cola stock-reserve-queue: consumidores=' + q.consumers + ' mensajes=' + q.messages);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{rabbitUrl}}/api/queues/%2F/stock-reserve-queue",
+            "description": "Consulta la API de management de RabbitMQ: consumidores conectados y mensajes.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "guest",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "guest",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verificar descuento de stock (consumo Kafka/Rabbit)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const stock = Number(pm.response.json().stock);",
+                  "const antes = Number(pm.collectionVariables.get('stockAntes'));",
+                  "pm.test('El stock no aumento', () => pm.expect(stock).to.be.at.most(antes));",
+                  "console.log('Stock: antes=' + antes + ' ahora=' + stock + ' (esperado 97 = 100 - 2 Kafka - 1 Rabbit)');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products/{{saleProductId}}",
+            "description": "Resultado esperado: 100 - 2 (Kafka) - 1 (Rabbit) = 97. Lo descuentan consumidores asincronos."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07. Eureka, gateway y reportes (T3/T1)",
+      "description": "Service discovery, enrutamiento con lb:// y composicion de datos entre servicios.",
+      "item": [
+        {
+          "name": "Eureka - Servicios registrados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const raw = body.applications.application;",
+                  "const list = Array.isArray(raw) ? raw : [raw];",
+                  "pm.test('Al menos 6 servicios registrados', () => pm.expect(list.length).to.be.at.least(6));",
+                  "pm.test('Estan los 5 backends y el gateway', () => {",
+                  "    const names = list.map(a => a.name);",
+                  "    ['AUTH-SERVICE', 'INVENTARIO-SERVICE', 'VENTAS-SERVICE', 'CLIENTES-SERVICE', 'REPORTES-SERVICE', 'API-GATEWAY']",
+                  "        .forEach(n => pm.expect(names, 'falta ' + n).to.include(n));",
+                  "});",
+                  "console.log('Eureka: ' + list.map(a => a.name).join(', '));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{eurekaUrl}}/eureka/apps",
+            "description": "Eureka con las 6 instancias: 5 backends + API-GATEWAY."
+          },
+          "response": []
+        },
+        {
+          "name": "Productos por gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Devuelve un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gatewayUrl}}/products",
+            "description": "Misma peticion por el puerto 8762: el gateway resuelve lb://INVENTARIO-SERVICE."
+          },
+          "response": []
+        },
+        {
+          "name": "Resumen general",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Trae los 5 indicadores', () => {",
+                  "    ['totalProductos', 'totalVentas', 'totalClientes', 'valorInventario', 'montoVentas'].forEach(k => pm.expect(res).to.have.property(k));",
+                  "});",
+                  "pm.test('Hay productos y ventas registradas', () => {",
+                  "    pm.expect(res.totalProductos).to.be.at.least(1);",
+                  "    pm.expect(res.totalVentas).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{reportesUrl}}/reports/resumen",
+            "description": "reportes-service arma el resumen llamando por Feign a inventario, ventas y clientes."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08. Observabilidad (T7)",
+      "description": "Actuator expone salud y metricas de cada servicio.",
+      "item": [
+        {
+          "name": "Health inventario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/actuator/health",
+            "description": "GET /actuator/health: estado UP y componentes (db, disco, etc.)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "09. Limpieza",
+      "description": "Borra lo creado en la corrida. La BD queda como estaba: 27 joyas, 21 ventas, 13 clientes, 5 usuarios.",
+      "item": [
+        {
+          "name": "Eliminar venta de prueba (Kafka)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('newSaleId')) {",
+                  "    console.log('Sin newSaleId en esta corrida: se omite la limpieza');",
+                  "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204 (eliminado)', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('newSaleId', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{ventasUrl}}/sales/{{newSaleId}}",
+            "description": "DELETE /sales/{id} de la venta creada en la carpeta 04."
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar joya de venta",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('saleProductId')) {",
+                  "    console.log('Sin saleProductId en esta corrida: se omite la limpieza');",
+                  "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204 (eliminado)', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('saleProductId', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{inventarioUrl}}/products/{{saleProductId}}",
+            "description": "DELETE /products/{id} de la joya con stock 100."
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar venta Rabbit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204 (eliminado)', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('saleRabbitId', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{ventasUrl}}/sales/{{saleRabbitId}}",
+            "description": "DELETE /sales/{id} de la venta con reserva RabbitMQ."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Identificador unico por corrida: evita choques con datos existentes (usuario, DNI, nombres).",
+          "if (!pm.collectionVariables.get('runId')) {",
+          "    const id = String(Date.now()).slice(-5) + Math.floor(Math.random() * 90 + 10);",
+          "    pm.collectionVariables.set('runId', id);",
+          "    console.log('runId de esta corrida: ' + id);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "authUrl",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "inventarioUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "ventasUrl",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "clientesUrl",
+      "value": "http://localhost:8084",
+      "type": "string"
+    },
+    {
+      "key": "reportesUrl",
+      "value": "http://localhost:8085",
+      "type": "string"
+    },
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8762",
+      "type": "string"
+    },
+    {
+      "key": "eurekaUrl",
+      "value": "http://localhost:8761",
+      "type": "string"
+    },
+    {
+      "key": "configUrl",
+      "value": "http://localhost:8888",
+      "type": "string"
+    },
+    {
+      "key": "rabbitUrl",
+      "value": "http://localhost:15672",
+      "type": "string"
+    },
+    {
+      "key": "kafkaUiUrl",
+      "value": "http://localhost:8090",
+      "type": "string"
+    },
+    {
+      "key": "kafkaCluster",
+      "value": "ligo-local",
+      "type": "string"
+    },
+    {
+      "key": "adminUser",
+      "value": "admin",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin123",
+      "type": "string"
+    },
+    {
+      "key": "vendedorUser",
+      "value": "vendedor",
+      "type": "string"
+    },
+    {
+      "key": "vendedorPassword",
+      "value": "vendedor123",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jwt_vendedor",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jwt_vendedor_nuevo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "customerId",
+      "value": "7",
+      "type": "string"
+    },
+    {
+      "key": "newProductId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newCustomerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saleProductId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newSaleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saleRabbitId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stockAntes",
+      "value": "0",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  }
+}
