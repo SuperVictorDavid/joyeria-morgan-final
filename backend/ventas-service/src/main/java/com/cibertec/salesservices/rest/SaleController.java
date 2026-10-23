@@ -1,5 +1,7 @@
 package com.cibertec.salesservices.rest;
 
+import com.cibertec.salesservices.dto.SaleBatchRequest;
+import com.cibertec.salesservices.dto.SaleBatchResponse;
 import com.cibertec.salesservices.dto.SaleRequest;
 import com.cibertec.salesservices.dto.SaleResponse;
 import com.cibertec.salesservices.dto.SaleWithProductResponse;
@@ -56,6 +58,12 @@ public class SaleController {
 	@PostMapping("/sales")
 	public ResponseEntity<SaleResponse> createSale(@Valid @RequestBody SaleRequest request) {
 		return ResponseEntity.ok(saleService.createSale(request));
+	}
+
+	// Checkout del carrito: varios productos en una sola boleta.
+	@PostMapping("/sales/batch")
+	public ResponseEntity<SaleBatchResponse> createSaleBatch(@Valid @RequestBody SaleBatchRequest request) {
+		return ResponseEntity.ok(saleService.createSaleBatch(request));
 	}
 
 	// Este endpoint separa el caso RabbitMQ del caso Kafka para que ambos flujos convivan sin duplicar

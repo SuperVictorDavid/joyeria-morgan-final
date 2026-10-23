@@ -51,7 +51,7 @@
         <button class="btn-secondary" (click)="limpiar()">Limpiar</button>
       </div>
     </div>
-    <p class="filter-count">{{ filtradas.length }} ventas encontradas</p>
+    <p class="filter-count">{{ filtradas.length }} boletas encontradas</p>
   </div>
 
   <!-- Tabla -->
@@ -63,17 +63,21 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let v of paginadas">
-          <td><span class="pill pill-boleta">{{ v.numeroBoleta || ('BOL-' + v.saleId) }}</span></td>
-          <td>{{ nombreJoya(v.productId) }}<span class="muted-cant"> x{{ v.quantity }}</span></td>
-          <td class="cell-fecha">{{ v.fechaVenta ? (v.fechaVenta | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
-          <td>{{ nombreCliente(v.customerId) }}</td>
-          <td><span class="pill pill-vendedor">{{ v.vendedor || '—' }}</span></td>
-          <td class="cell-total">S/ {{ (v.total ?? 0) | number:'1.2-2' }}</td>
+        <tr *ngFor="let g of paginadas">
+          <td><span class="pill pill-boleta">{{ g.numeroBoleta }}</span></td>
+          <td class="cell-joya">
+            <div *ngFor="let it of g.items" class="venta-item-line">
+              {{ nombreJoya(it.productId) }}<span class="muted-cant"> x{{ it.quantity }}</span>
+            </div>
+          </td>
+          <td class="cell-fecha">{{ g.fechaVenta ? (g.fechaVenta | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
+          <td>{{ nombreCliente(g.customerId) }}</td>
+          <td><span class="pill pill-vendedor">{{ g.vendedor || '—' }}</span></td>
+          <td class="cell-total">S/ {{ (g.total ?? 0) | number:'1.2-2' }}</td>
           <td>
             <div class="actions">
-              <button class="btn-link-detalle" (click)="verDetalle(v.saleId)">👁 Ver Detalle</button>
-              <button *ngIf="auth.isAdmin()" class="btn-icon danger" title="Eliminar" (click)="eliminar(v.saleId)">🗑</button>
+              <button class="btn-link-detalle" (click)="verDetalle(g)">👁 Ver Detalle</button>
+              <button *ngIf="auth.isAdmin()" class="btn-icon danger" title="Eliminar" [disabled]="eliminando" (click)="eliminar(g)">🗑</button>
             </div>
           </td>
         </tr>
@@ -102,8 +106,22 @@
         <p><strong>Fecha y Hora:</strong> {{ detalle.fechaVenta ? (detalle.fechaVenta | date:'dd/MM/yyyy HH:mm') : '—' }}</p>
         <p><strong>Cliente:</strong> {{ nombreCliente(detalle.customerId) }}</p>
         <p><strong>Vendedor:</strong> {{ detalle.vendedor || '—' }}</p>
-        <p><strong>Producto:</strong> {{ detalle.product?.descripcion || detalle.product?.name || nombreJoya(detalle.productId) }} x {{ detalle.quantity }}</p>
-        <p><strong>Total: S/ {{ (detalle.total ?? 0) | number:'1.2-2' }}</strong> | Estado: {{ detalle.status || '—' }}</p>
+        <div class="table-container" style="margin: 12px 0">
+          <table class="data-table">
+            <thead>
+              <tr><th>Producto</th><th>Cant.</th><th>P. Unit.</th><th>Subtotal</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let it of detalle.items">
+                <td>{{ nombreJoya(it.productId) }}</td>
+                <td>{{ it.quantity }}</td>
+                <td>S/ {{ ((it.total ?? 0) / (it.quantity || 1)) | number:'1.2-2' }}</td>
+                <td>S/ {{ (it.total ?? 0) | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Total: S/ {{ (detalle.total ?? 0) | number:'1.2-2' }}</strong> | Estado: {{ detalle.items[0]?.status || 'PROCESADO' }}</p>
       </div>
       <div class="modal-buttons no-print">
         <button class="btn-cancel" (click)="cerrarDetalle()">Cerrar</button>

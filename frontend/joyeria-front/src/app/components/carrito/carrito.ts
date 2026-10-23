@@ -116,38 +116,24 @@ export class CarritoComponent implements OnInit, OnDestroy {
   procesar() {
     if (!this.carrito.length) { this.toast.warning('Carrito vacío'); return; }
     if (this.clienteId == null) { this.toast.warning('Selecciona un cliente'); return; }
+    const clienteId = this.clienteId;
     this.procesando = true;
-    const items = [...this.carrito];
-    const totalFinal = this.total;
-    let ok = 0;
-    let fallos = 0;
-    let primerError = '';
-    items.forEach((item) => {
-      this.ventas.crear({ productId: item.joya.id!, quantity: item.cantidad, customerId: this.clienteId!, vendedor: this.vendedor }).subscribe({
-        next: () => {
-          ok++;
-          this.finalizarProceso(ok, fallos, items.length, totalFinal, primerError);
-        },
-        error: (err) => {
-          fallos++;
-          if (!primerError) primerError = mensajeErrorApi(err, 'ventas-service (8082)');
-          this.finalizarProceso(ok, fallos, items.length, totalFinal, primerError);
-        },
-      });
-    });
-  }
+    const items = this.carrito.map((i) => ({ productId: i.joya.id!, quantity: i.cantidad }));
 
-  private finalizarProceso(ok: number, fallos: number, totalItems: number, totalFinal: number, primerError: string) {
-    if (ok + fallos !== totalItems) return;
-    this.procesando = false;
-    if (ok > 0) {
-      this.toast.success(`Venta procesada: ${ok} joyas, Total S/ ${totalFinal.toFixed(2)}`);
-      this.vaciar();
-      this.joyaService.listar().subscribe({ next: (d) => { this.joyas = d ?? []; this.cdr.detectChanges(); } });
-    }
-    if (fallos > 0) {
-      this.toast.error(primerError || `${fallos} items fallaron`);
-    }
-    this.cdr.detectChanges();
+    this.ventas.crearLote({ customerId: clienteId, vendedor: this.vendedor, items }).subscribe({
+      next: (r) => {
+        this.procesando = false;
+        const cantidad = r.items?.length ?? items.length;
+        this.toast.success(`Boleta ${r.numeroBoleta}: ${cantidad} producto(s), Total S/ ${(r.total ?? 0).toFixed(2)}`);
+        this.vaciar();
+        this.joyaService.listar().subscribe({ next: (d) => { this.joyas = d ?? []; this.cdr.detectChanges(); } });
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.procesando = false;
+        this.toast.error(mensajeErrorApi(err, 'ventas-service (8082)'));
+        this.cdr.detectChanges();
+      },
+    });
   }
 }

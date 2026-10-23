@@ -2,6 +2,9 @@ package com.cibertec.salesservices.negocio;
 
 import com.cibertec.salesservices.client.ProductClient;
 import com.cibertec.salesservices.dto.ProductResponse;
+import com.cibertec.salesservices.dto.SaleBatchRequest;
+import com.cibertec.salesservices.dto.SaleBatchResponse;
+import com.cibertec.salesservices.dto.SaleItemRequest;
 import com.cibertec.salesservices.dto.SaleRequest;
 import com.cibertec.salesservices.dto.SaleResponse;
 import com.cibertec.salesservices.dto.SaleWithProductResponse;
@@ -26,7 +29,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 // @Service registra lógica de negocio administrada por Spring.
 // En AWS este rol normalmente vive dentro del código de una Lambda o de un microservicio ECS.
@@ -138,6 +144,82 @@ public class SaleService {
 		}
 
 		return buildSaleResponse(storedSale);
+	}
+
+	// Checkout con varios productos: valida todo antes de guardar, comparte una sola
+	// boleta entre las filas y publica un evento de stock por producto.
+	public SaleBatchResponse createSaleBatch(SaleBatchRequest request) {
+		// Si el carrito repite un producto, se suma la cantidad para validar el stock una sola vez.
+		Map<Long, Integer> cantidades = new LinkedHashMap<>();
+		for (SaleItemRequest item : request.items()) {
+			cantidades.merge(item.productId(), item.quantity(), Integer::sum);
+		}
+
+		Map<Long, ProductResponse> productos = new LinkedHashMap<>();
+		for (Map.Entry<Long, Integer> entry : cantidades.entrySet()) {
+			ProductResponse product = findProduct(entry.getKey());
+			validateStock(product, entry.getValue());
+			productos.put(entry.getKey(), product);
+		}
+
+		LocalDateTime fechaVenta = LocalDateTime.now();
+		List<Sale> guardadas = new ArrayList<>();
+		String numeroBoleta = null;
+
+		try {
+			for (Map.Entry<Long, Integer> entry : cantidades.entrySet()) {
+				ProductResponse product = productos.get(entry.getKey());
+				Sale sale = Sale.builder()
+						.productId(entry.getKey())
+						.quantity(entry.getValue())
+						.customerId(request.customerId())
+						.vendedor(request.vendedor())
+						.total(calculateTotal(product, entry.getValue()))
+						.fechaVenta(fechaVenta)
+						.status("PROCESADO")
+						.build();
+				Sale saved = saleRepository.save(sale);
+				if (numeroBoleta == null) {
+					numeroBoleta = "B001-" + String.format("%06d", saved.getSaleId());
+				}
+				saved.setNumeroBoleta(numeroBoleta);
+				guardadas.add(saleRepository.save(saved));
+			}
+		} catch (RuntimeException ex) {
+			guardadas.forEach(saleRepository::delete);
+			throw ex;
+		}
+
+		List<Sale> publicadas = new ArrayList<>();
+		try {
+			for (Sale sale : guardadas) {
+				publishStockMovement(sale.getSaleId(), sale.getProductId(),
+						sale.getQuantity(), sale.getCustomerId());
+				publicadas.add(sale);
+			}
+		} catch (ResponseStatusException ex) {
+			// Si Kafka falla a mitad del checkout, se devuelve el stock de lo ya publicado
+			// y se borran todas las filas para no dejar una boleta incompleta.
+			for (Sale sale : publicadas) {
+				try {
+					publishSaleCancellation(sale.getSaleId(), sale.getProductId(), sale.getQuantity(),
+							sale.getCustomerId(), sale.getStatus());
+				} catch (RuntimeException cancelEx) {
+					LOGGER.error("No se pudo revertir el stock. saleId={}, motivo={}",
+							sale.getSaleId(), cancelEx.getMessage());
+				}
+			}
+			guardadas.forEach(saleRepository::delete);
+			throw ex;
+		}
+
+		BigDecimal total = guardadas.stream()
+				.map(Sale::getTotal)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+		List<SaleResponse> items = guardadas.stream().map(this::buildSaleResponse).toList();
+
+		return new SaleBatchResponse(numeroBoleta, request.customerId(), request.vendedor(),
+				total, fechaVenta, items);
 	}
 
 	// Al cambiar producto o cantidad se recalcula el total y se ajusta el stock:

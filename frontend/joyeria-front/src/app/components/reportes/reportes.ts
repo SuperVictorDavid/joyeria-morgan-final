@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { VentaService, Venta } from '../../services/venta';
+import { VentaService, Venta, agruparVentas } from '../../services/venta';
 import { JoyaService, Joya } from '../../services/joya';
 import { ToastService } from '../../services/toast.service';
 
@@ -104,23 +104,26 @@ export class ReportesComponent implements OnInit {
   }
 
   generarReporteVentas() {
-    const lista = this.ventas.filter(
-      (v) =>
-        (this.repVentasCliente === 'Todos' || String(v.customerId) === this.repVentasCliente) &&
-        this.enRango(v.fechaVenta, this.repVentasDesde, this.repVentasHasta),
+    // Se agrupa por boleta: un checkout con varios productos cuenta como una sola venta.
+    const lista = agruparVentas(
+      this.ventas.filter(
+        (v) =>
+          (this.repVentasCliente === 'Todos' || String(v.customerId) === this.repVentasCliente) &&
+          this.enRango(v.fechaVenta, this.repVentasDesde, this.repVentasHasta),
+      ),
     );
-    const total = lista.reduce((a, v) => a + (v.total ?? 0), 0);
+    const total = lista.reduce((a, g) => a + g.total, 0);
     this.modal = {
       titulo: 'Reporte de Ventas por Período',
       subtitulo: `${this.rangoLabel(this.repVentasDesde, this.repVentasHasta)} · Cliente: ${this.repVentasCliente}`,
       encabezados: ['N° Boleta', 'Cliente', 'Vendedor', 'Total S/'],
-      filas: lista.map((v) => [
-        v.numeroBoleta || (v.saleId != null ? `BOL-${v.saleId}` : '—'),
-        v.customerId != null ? `Cliente ${v.customerId}` : '—',
-        v.vendedor || '—',
-        `S/ ${(v.total ?? 0).toFixed(2)}`,
+      filas: lista.map((g) => [
+        g.numeroBoleta,
+        g.customerId != null ? `Cliente ${g.customerId}` : '—',
+        g.vendedor || '—',
+        `S/ ${g.total.toFixed(2)}`,
       ]),
-      totalLabel: `Total (${lista.length} ventas)`,
+      totalLabel: `Total (${lista.length} boletas)`,
       totalValor: `S/ ${total.toFixed(2)}`,
     };
     this.cdr.detectChanges();
@@ -178,21 +181,21 @@ export class ReportesComponent implements OnInit {
   }
 
   generarReporteVendedor() {
-    const lista = this.ventas.filter(
-      (v) => this.repVendedor === 'Todos' || v.vendedor === this.repVendedor,
+    const lista = agruparVentas(
+      this.ventas.filter((v) => this.repVendedor === 'Todos' || v.vendedor === this.repVendedor),
     );
-    const total = lista.reduce((a, v) => a + (v.total ?? 0), 0);
+    const total = lista.reduce((a, g) => a + g.total, 0);
     this.modal = {
       titulo: 'Reporte de Ventas por Vendedor',
       subtitulo: `Vendedor: ${this.repVendedor}`,
       encabezados: ['N° Boleta', 'Cliente', 'Vendedor', 'Total S/'],
-      filas: lista.map((v) => [
-        v.numeroBoleta || (v.saleId != null ? `BOL-${v.saleId}` : '—'),
-        v.customerId != null ? `Cliente ${v.customerId}` : '—',
-        v.vendedor || '—',
-        `S/ ${(v.total ?? 0).toFixed(2)}`,
+      filas: lista.map((g) => [
+        g.numeroBoleta,
+        g.customerId != null ? `Cliente ${g.customerId}` : '—',
+        g.vendedor || '—',
+        `S/ ${g.total.toFixed(2)}`,
       ]),
-      totalLabel: `Total (${lista.length} ventas)`,
+      totalLabel: `Total (${lista.length} boletas)`,
       totalValor: `S/ ${total.toFixed(2)}`,
     };
     this.cdr.detectChanges();

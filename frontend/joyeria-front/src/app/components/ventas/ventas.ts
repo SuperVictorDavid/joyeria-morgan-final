@@ -2,7 +2,8 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { VentaService, Venta } from '../../services/venta';
+import { from, concatMap, toArray } from 'rxjs';
+import { VentaService, Venta, VentaGrupo, agruparVentas } from '../../services/venta';
 import { JoyaService, Joya } from '../../services/joya';
 import { ClienteService, Cliente } from '../../services/cliente';
 import { ToastService } from '../../services/toast.service';
@@ -18,17 +19,19 @@ import { mensajeErrorApi } from '../../services/api-error';
 })
 export class VentasComponent implements OnInit {
   ventas: Venta[] = [];
-  filtradas: Venta[] = [];
+  grupos: VentaGrupo[] = [];
+  filtradas: VentaGrupo[] = [];
   joyas: Joya[] = [];
   clientesInfo: Cliente[] = [];
-  detalle: any = null;
+  detalle: VentaGrupo | null = null;
+  eliminando = false;
 
   // Filtros por rango de fecha y cliente
   fechaDesde = '';
   fechaHasta = '';
   filtroCliente = 'Todos';
 
-  // Paginación: 6 por página
+  // Paginación: 6 boletas por página
   pagina = 1;
   porPagina = 6;
 
@@ -51,7 +54,9 @@ export class VentasComponent implements OnInit {
     this.ventaService.listar().subscribe({
       next: (d) => {
         this.ventas = d ?? [];
-        this.filtradas = [...this.ventas];
+        // Una boleta puede tener varias filas (una por producto): se muestran juntas.
+        this.grupos = agruparVentas(this.ventas);
+        this.filtradas = [...this.grupos];
         this.pagina = 1;
         this.cdr.detectChanges();
       },
@@ -68,7 +73,7 @@ export class VentasComponent implements OnInit {
 
   get ventasHoy(): number {
     const hoy = this.hoyLocal();
-    return this.ventas.filter((v) => v.fechaVenta?.slice(0, 10) === hoy).length;
+    return this.grupos.filter((g) => g.fechaVenta?.slice(0, 10) === hoy).length;
   }
 
   get totalFiltradas(): number {
@@ -76,7 +81,7 @@ export class VentasComponent implements OnInit {
   }
 
   get montoTotal(): number {
-    return this.filtradas.reduce((a, v) => a + (v.total ?? 0), 0);
+    return this.filtradas.reduce((a, g) => a + (g.total ?? 0), 0);
   }
 
   get promedio(): number {
@@ -86,7 +91,7 @@ export class VentasComponent implements OnInit {
   // ===== Paginación =====
   get totalPaginas(): number { return Math.max(1, Math.ceil(this.filtradas.length / this.porPagina)); }
   get paginas(): number[] { return Array.from({ length: this.totalPaginas }, (_, i) => i + 1); }
-  get paginadas(): Venta[] {
+  get paginadas(): VentaGrupo[] {
     const ini = (this.pagina - 1) * this.porPagina;
     return this.filtradas.slice(ini, ini + this.porPagina);
   }
@@ -96,17 +101,17 @@ export class VentasComponent implements OnInit {
 
   get clienteIds(): number[] {
     const set = new Set<number>();
-    this.ventas.forEach((v) => {
-      if (v.customerId != null) set.add(v.customerId);
+    this.grupos.forEach((g) => {
+      if (g.customerId != null) set.add(g.customerId);
     });
     return [...set].sort((a, b) => a - b);
   }
 
   // ===== Filtros =====
   filtrar() {
-    this.filtradas = this.ventas.filter((v) => {
-      const matchCliente = this.filtroCliente === 'Todos' || String(v.customerId) === this.filtroCliente;
-      const fv = v.fechaVenta ? v.fechaVenta.slice(0, 10) : '';
+    this.filtradas = this.grupos.filter((g) => {
+      const matchCliente = this.filtroCliente === 'Todos' || String(g.customerId) === this.filtroCliente;
+      const fv = g.fechaVenta ? g.fechaVenta.slice(0, 10) : '';
       const matchDesde = !this.fechaDesde || (!!fv && fv >= this.fechaDesde);
       const matchHasta = !this.fechaHasta || (!!fv && fv <= this.fechaHasta);
       return matchCliente && matchDesde && matchHasta;
@@ -119,33 +124,30 @@ export class VentasComponent implements OnInit {
     this.fechaDesde = '';
     this.fechaHasta = '';
     this.filtroCliente = 'Todos';
-    this.filtradas = [...this.ventas];
+    this.filtradas = [...this.grupos];
     this.pagina = 1;
     this.cdr.detectChanges();
   }
 
   nombreJoya(productId?: number): string {
     const j = this.joyas.find((x) => x.id === productId);
-    if (!j) return `Joya ${productId ?? '—'}`;
-    return j.descripcion || j.name || `Joya ${productId ?? '—'}`;
+    if (!j) return `Joya ${productId ?? '-'}`;
+    return j.descripcion || j.name || `Joya ${productId ?? '-'}`;
   }
 
   nombreCliente(customerId?: number | null): string {
-    if (customerId == null) return '—';
+    if (customerId == null) return '-';
     const c = this.clientesInfo.find((x) => x.customerId === customerId);
     if (!c) return `Cliente ${customerId}`;
     return c.dni ? `${c.nombre} (DNI: ${c.dni})` : c.nombre;
   }
 
-  verDetalle(id?: number) {
-    if (!id) return;
-    this.ventaService.detalle(id).subscribe({
-      next: (d) => {
-        this.detalle = d;
-        this.cdr.detectChanges();
-      },
-      error: (err) => this.toast.error(mensajeErrorApi(err, 'ventas-service (8082)')),
-    });
+  resumenCantidad(g: VentaGrupo): number {
+    return g.items.reduce((a, i) => a + (i.quantity ?? 0), 0);
+  }
+
+  verDetalle(g: VentaGrupo) {    this.detalle = g;
+    this.cdr.detectChanges();
   }
 
   cerrarDetalle() {
@@ -156,16 +158,31 @@ export class VentasComponent implements OnInit {
     window.print();
   }
 
-  eliminar(id?: number) {
-    if (!id) return;
-    if (confirm('¿Eliminar venta?')) {
-      this.ventaService.eliminar(id).subscribe({
+  eliminar(g: VentaGrupo) {
+    const ids = g.items
+      .map((i) => i.saleId)
+      .filter((id): id is number => id != null);
+    if (!ids.length) return;
+    if (!confirm(`¿Eliminar la boleta ${g.numeroBoleta} (${ids.length} producto(s))?`)) return;
+
+    this.eliminando = true;
+    // Se eliminan todas las filas de la boleta (cada una devuelve su stock).
+    from(ids)
+      .pipe(
+        concatMap((id) => this.ventaService.eliminar(id)),
+        toArray(),
+      )
+      .subscribe({
         next: () => {
-          this.toast.success('Venta eliminada');
+          this.eliminando = false;
+          this.toast.success('Boleta eliminada');
           this.cargar();
         },
-        error: (err) => this.toast.error('No se pudo eliminar: ' + mensajeErrorApi(err, 'ventas-service (8082)')),
+        error: (err) => {
+          this.eliminando = false;
+          this.toast.error('No se pudo eliminar: ' + mensajeErrorApi(err, 'ventas-service (8082)'));
+          this.cargar();
+        },
       });
-    }
   }
 }

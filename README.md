@@ -76,7 +76,15 @@ Esperar ~2 min. Verificar `docker ps` y abrir:
 ## Frontend: desarrollo vs produccion
 - `environment.development.ts` (lo usa `ng serve`): cada servicio directo en `localhost:8081..8085`.
 - `environment.ts` (lo usa `ng build`): `apiUrl: '/api'`; nginx del contenedor proxya `/api/*` hacia `api-gateway:8762`. El bundle de produccion no lleva hosts ni puertos de microservicios.
-- `npm test` (Vitest) y `npm run build` deben quedar en verde (5/5 tests).
+- `npm test` (Vitest) y `npm run build` deben quedar en verde (7/7 tests).
+
+### Venta con varios productos (una sola boleta)
+- El carrito hace **un solo** `POST /sales/batch` con `{ customerId, vendedor, items: [{ productId, quantity }] }`.
+- El backend valida el stock de todos los items **antes de guardar**, crea una fila por producto con el **mismo `numeroBoleta`** y publica un evento Kafka por producto.
+- Ventas y Reportes agrupan por boleta: una fila con todos los productos, el total sumado y "Ver Detalle" con el desglose.
+- Si un producto no existe o no hay stock, no se guarda ninguno (todo o nada).
+- Al eliminar una boleta se eliminan todas sus filas y se devuelve el stock de cada producto.
+- El endpoint viejo `POST /sales` sigue funcionando para una venta de un solo producto (lo usa Postman).
 
 ## Demo publica temporal (tunel)
 
@@ -111,6 +119,7 @@ Notas:
 
 ## Microservicios (clase)
 - Sync: ventas -> inventario por Feign `GET /products/{id}` (`client/ProductClient.java`), `GET /sales/{id}/details` calcula total
+- Batch: `POST /sales/batch` crea una boleta con varios productos (una fila por producto, mismo `numeroBoleta`); lo usa el carrito desde `services/venta.ts`
 - Async: ventas publica `stock-movements` (Kafka) o `stock.reserve` (Rabbit), inventario `decreaseStock()` + alerta `stock.low`; al anular se publica `sale-cancellation-requests` y se hace `increaseStock()`
 - Seguridad: JWT en los 5 servicios (`JwtService`, `JwtAuthenticationFilter`, `SecurityConfig`, `BCryptPasswordEncoder`); 401 sin token, 403 por rol; CORS a 4200
 - Config: `infra/config-server/config-repo/*.yml` es la fuente central; los servicios la importan y aceptan override por variables de entorno

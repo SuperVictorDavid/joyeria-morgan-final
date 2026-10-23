@@ -66,6 +66,9 @@
 .ventas-table thead th { color: #f8fafc; }
 .ventas-table tbody tr:hover { background: #f1f5f9; }
 .cell-fecha { color: var(--text-muted); white-space: nowrap; }
+.cell-joya { min-width: 220px; }
+.venta-item-line { line-height: 1.35; }
+.venta-item-line + .venta-item-line { margin-top: 2px; }
 .cell-total { color: #16a34a; font-weight: 700; white-space: nowrap; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 1.5rem; }
 
