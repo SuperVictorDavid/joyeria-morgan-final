@@ -78,6 +78,32 @@ Esperar ~2 min. Verificar `docker ps` y abrir:
 - `environment.ts` (lo usa `ng build`): `apiUrl: '/api'`; nginx del contenedor proxya `/api/*` hacia `api-gateway:8762`. El bundle de produccion no lleva hosts ni puertos de microservicios.
 - `npm test` (Vitest) y `npm run build` deben quedar en verde (5/5 tests).
 
+## Demo publica temporal (tunel)
+
+Para que tu grupo abra la app desde cualquier red **mientras tu laptop esta encendida**, sin pagar nube:
+se sirve el build de produccion en un contenedor nginx y se expone con un tunel de Cloudflare.
+
+Requisitos (una sola vez):
+```powershell
+docker build -t joyeria-front:demo .\frontend\joyeria-front
+```
+`cloudflared` queda en `%LOCALAPPDATA%\cloudflared\cloudflared.exe` (si falta, descargarlo de
+https://github.com/cloudflare/cloudflared/releases).
+
+Cada vez que quieras exponer:
+1. Docker Desktop encendido.
+2. En IntelliJ: Eureka, Config Server, los 5 microservicios y el API Gateway (`8762`).
+3. Doble clic a **`DEMO-TUNEL.bat`**: arranca el contenedor `joyeria-front-demo` (puerto `4201`) y abre el tunel.
+4. Copia la linea `https://xxxx-xxxx-xxxx.trycloudflare.com` y enviala al grupo.
+5. Para cortar: **`DETENER-TUNEL.bat`** o `Ctrl+C` en la ventana.
+
+Notas:
+- La URL cambia cada vez que se reinicia el tunel; el `.bat` siempre muestra la nueva.
+- La laptop debe quedar encendida y **sin suspender**; si se duerme, la URL deja de responder.
+- Solo se publica el frontend (`4201`) y su proxy `/api`; MySQL, Kafka y RabbitMQ no quedan expuestos.
+- El login de la demo es `admin/admin123` (o `vendedor/vendedor123`): cualquiera con el enlace puede entrar, es temporal.
+- `nginx.conf` quita el header `Origin` hacia el gateway para que el CORS de `localhost:4200` no bloquee el dominio del tunel.
+
 ## Coleccion Postman
 - `postman/Joyeria-Morgan-DEMO.postman_collection.json`: 39 peticiones, 9 carpetas, un solo archivo para importar.
 - Sin environment (las variables viven en la coleccion). Detalle en `postman/README-coleccion.md`.
