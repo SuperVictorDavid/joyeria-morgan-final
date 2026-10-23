@@ -27,12 +27,12 @@
   - Build: `ng build` OK (dist/joyeria-front)
 
 ## Microservicios extra (clase)
-- [x] Feign ventas->inventario, RabbitMQ `stock.reserve`, Kafka `stock-movements`
-- [x] JWT `auth-service:8083`, CORS 4200, Docker MySQL 5510/joyeria_db
-- [ ] Opcional: Eureka 8761 + Gateway 8762 (spring_cloud del curso), Resiliencia, K8s
+- [x] Feign ventas->inventario, RabbitMQ `stock.reserve`, Kafka `stock-movements` + compensacion `sale-cancellation-requests`
+- [x] JWT en los 5 servicios: 401 sin token / 403 por rol, CORS 4200, Docker MySQL 5510/joyeria_db
+- [x] Eureka 8761 + Config Server 8888 + Gateway 8762 + Resilience4j (CircuitBreaker/Retry) + K8s
 
-## Cómo demostrar
-1. `database/docker compose up -d` -> joyeria_db creada
-2. `./gradlew test` (3 servicios) -> mostrar BUILD SUCCESSFUL
-3. `bootRun` 8083,8081,8082 -> Postman `Joyeria-Flows` login -> JWT -> CRUD
-4. `ng serve` 4200 -> login admin/admin123 -> Inventario CRUD -> Ventas crear -> Detalle Feign
+## Como demostrar
+1. `docker compose -f docker-compose.full.yml up -d --build` -> MySQL + Rabbit + Kafka + Eureka + Config + backends + gateway + frontend
+2. `./gradlew test` en backend o `npm test` en `frontend/joyeria-front` (5/5) -> BUILD SUCCESSFUL
+3. `ng serve` 4200 -> login admin/admin123 -> Inventario CRUD -> Ventas crear -> Detalle Feign
+4. Postman `Joyeria-Morgan-DEMO` (38 peticiones): 401/403, 404/400/409, Kafka/Rabbit, anulacion con devolucion de stock

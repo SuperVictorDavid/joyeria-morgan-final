@@ -10,7 +10,11 @@ spring:
         - id: auth-service
           uri: lb://auth-service
           predicates:
-            - Path=/auth/**,/users/**,/customers/**
+            - Path=/auth/**,/users/**
+        - id: clientes-service
+          uri: lb://clientes-service
+          predicates:
+            - Path=/customers/**
         - id: inventario-service
           uri: lb://inventario-service
           predicates:
@@ -19,10 +23,14 @@ spring:
           uri: lb://ventas-service
           predicates:
             - Path=/sales/**
+        - id: reportes-service
+          uri: lb://reportes-service
+          predicates:
+            - Path=/reports/**
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "http://localhost:4200"
+            allowedOrigins: "${CORS_ORIGINS:http://localhost:4200}"
             allowedMethods: "GET,POST,PUT,DELETE,OPTIONS"
             allowedHeaders: "*"
             allowCredentials: true
@@ -32,7 +40,9 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: "${EUREKA_URL:http://localhost:8761/eureka/}"
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:

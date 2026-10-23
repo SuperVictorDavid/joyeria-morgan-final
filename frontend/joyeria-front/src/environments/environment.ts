@@ -1,16 +1,13 @@
+// Ambiente de PRODUCCION (ng build).
+// El frontend se sirve por nginx y este proxya /api hacia el API Gateway,
+// por eso el bundle no lleva hosts ni puertos de los microservicios.
 export const environment = {
-  production: false,
-  // Directo (dev actual):
-  apiUrl: 'http://localhost:8083',
-  authUrl: 'http://localhost:8083',
-  inventarioUrl: 'http://localhost:8081',
-  ventasUrl: 'http://localhost:8082',
-  clientesUrl: 'http://localhost:8084',
-  reportesUrl: 'http://localhost:8085',
-  // Via Gateway (para demo T1 Spring Cloud, cambia a esto si quieres pasar por 8762):
-  // apiUrl: 'http://localhost:8762',
-  // authUrl: 'http://localhost:8762',
-  // inventarioUrl: 'http://localhost:8762',
-  // ventasUrl: 'http://localhost:8762',
-  gatewayUrl: 'http://localhost:8762',
+  production: true,
+  apiUrl: '/api',
+  authUrl: '/api',
+  inventarioUrl: '/api',
+  ventasUrl: '/api',
+  clientesUrl: '/api',
+  reportesUrl: '/api',
+  gatewayUrl: '/api',
 };

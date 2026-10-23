@@ -3,10 +3,12 @@ package com.joyeria.reportes.rest;
 import com.joyeria.reportes.client.ClientesClient;
 import com.joyeria.reportes.client.InventarioClient;
 import com.joyeria.reportes.client.VentasClient;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -33,9 +35,9 @@ public class ReporteController {
 
 	@GetMapping("/resumen")
 	public Map<String, Object> resumen() {
-		List<Map<String, Object>> productos = safe(inventarioCall());
-		List<Map<String, Object>> ventas = safe(ventasCall());
-		List<Map<String, Object>> clientes = safe(clientesCall());
+		List<Map<String, Object>> productos = inventarioCall();
+		List<Map<String, Object>> ventas = ventasCall();
+		List<Map<String, Object>> clientes = clientesCall();
 
 		BigDecimal valorInventario = productos.stream()
 				.map(p -> toBigDecimal(p.get("price")).multiply(BigDecimal.valueOf(toLong(p.get("stock")))))
@@ -56,35 +58,40 @@ public class ReporteController {
 
 	@GetMapping("/inventario")
 	public List<Map<String, Object>> inventario() {
-		return safe(inventarioCall());
+		return inventarioCall();
 	}
 
 	@GetMapping("/ventas")
 	public List<Map<String, Object>> ventas() {
-		return safe(ventasCall());
+		return ventasCall();
 	}
 
+	// Si una dependencia no responde se devuelve 503 con el motivo; antes se
+	// respondia 200 con ceros y una caida parecia un negocio sin datos.
 	private List<Map<String, Object>> inventarioCall() {
 		try {
-			return inventarioClient.getProducts();
+			return safe(inventarioClient.getProducts());
 		} catch (Exception e) {
-			return Collections.emptyList();
+			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+					"Inventario no disponible: no se puede calcular el resumen", e);
 		}
 	}
 
 	private List<Map<String, Object>> ventasCall() {
 		try {
-			return ventasClient.getSales();
+			return safe(ventasClient.getSales());
 		} catch (Exception e) {
-			return Collections.emptyList();
+			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+					"Ventas no disponible: no se puede calcular el resumen", e);
 		}
 	}
 
 	private List<Map<String, Object>> clientesCall() {
 		try {
-			return clientesClient.getCustomers();
+			return safe(clientesClient.getCustomers());
 		} catch (Exception e) {
-			return Collections.emptyList();
+			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+					"Clientes no disponible: no se puede calcular el resumen", e);
 		}
 	}
 

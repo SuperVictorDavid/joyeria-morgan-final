@@ -1,13 +1,26 @@
 spring:
   application:
     name: reportes-service
+  config:
+    # Config Server (T3): si no esta arriba, el servicio arranca con este application.yml.
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
 
 app:
   jwt:
     secret: "cibertec-demo-jwt-secret-key-2026-minimo-32-caracteres"
 
+# URLs de los servicios que consume reportes por Feign.
+# En Docker/K8s se sobreescriben con variables de entorno.
+servicios:
+  inventario-url: ${INVENTARIO_URL:http://localhost:8081}
+  ventas-url: ${VENTAS_URL:http://localhost:8082}
+  clientes-url: ${CLIENTES_URL:http://localhost:8084}
+
 server:
   port: 8085
+  error:
+    # Muestra el motivo real (Kafka, stock, validacion) en el JSON de error.
+    include-message: always
 
 eureka:
   client:
@@ -15,6 +28,8 @@ eureka:
     fetch-registry: true
     service-url:
       defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:

@@ -9,6 +9,7 @@ import { ClienteService, Cliente } from '../../services/cliente';
 import { CarritoStore, CarritoItem } from '../../services/carrito-store';
 import { AuthService } from '../../services/auth';
 import { ToastService } from '../../services/toast.service';
+import { mensajeErrorApi } from '../../services/api-error';
 
 @Component({
   selector: 'app-carrito',
@@ -120,30 +121,33 @@ export class CarritoComponent implements OnInit, OnDestroy {
     const totalFinal = this.total;
     let ok = 0;
     let fallos = 0;
+    let primerError = '';
     items.forEach((item) => {
       this.ventas.crear({ productId: item.joya.id!, quantity: item.cantidad, customerId: this.clienteId!, vendedor: this.vendedor }).subscribe({
         next: () => {
           ok++;
-          if (ok + fallos === items.length) {
-            this.procesando = false;
-            if (ok > 0) {
-              this.toast.success(`Venta procesada: ${ok} joyas, Total S/ ${totalFinal.toFixed(2)}`);
-              this.vaciar();
-              this.joyaService.listar().subscribe({ next: (d) => { this.joyas = d ?? []; this.cdr.detectChanges(); } });
-            }
-            if (fallos > 0) this.toast.error(`${fallos} items fallaron (verifica stock)`);
-            this.cdr.detectChanges();
-          }
+          this.finalizarProceso(ok, fallos, items.length, totalFinal, primerError);
         },
-        error: () => {
+        error: (err) => {
           fallos++;
-          if (ok + fallos === items.length) {
-            this.procesando = false;
-            this.toast.error('Error al procesar (verifica stock)');
-            this.cdr.detectChanges();
-          }
+          if (!primerError) primerError = mensajeErrorApi(err, 'ventas-service (8082)');
+          this.finalizarProceso(ok, fallos, items.length, totalFinal, primerError);
         },
       });
     });
+  }
+
+  private finalizarProceso(ok: number, fallos: number, totalItems: number, totalFinal: number, primerError: string) {
+    if (ok + fallos !== totalItems) return;
+    this.procesando = false;
+    if (ok > 0) {
+      this.toast.success(`Venta procesada: ${ok} joyas, Total S/ ${totalFinal.toFixed(2)}`);
+      this.vaciar();
+      this.joyaService.listar().subscribe({ next: (d) => { this.joyas = d ?? []; this.cdr.detectChanges(); } });
+    }
+    if (fallos > 0) {
+      this.toast.error(primerError || `${fallos} items fallaron`);
+    }
+    this.cdr.detectChanges();
   }
 }

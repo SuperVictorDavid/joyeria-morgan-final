@@ -23,3 +23,13 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "default"
+        - name: EUREKA_URL
+          value: "http://eureka-server:8761/eureka/"
+        - name: CONFIG_SERVER_URL
+          value: "http://config-server:8888"
+        - name: INVENTARIO_URL
+          value: "http://inventario-service:8081"
+        - name: VENTAS_URL
+          value: "http://ventas-service:8082"
+        - name: CLIENTES_URL
+          value: "http://clientes-service:8084"

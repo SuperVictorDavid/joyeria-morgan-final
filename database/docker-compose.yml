@@ -1,29 +1,34 @@
+# MySQL + phpMyAdmin de Joyeria Morgan.
+# Funciona sin .env (usa los valores por defecto) y tambien con:
+#   copy .env.example .env
+#   docker compose --env-file .env up -d
 services:
   db:
-    image: ${DB_IMAGE}
-    container_name: ${DB_HOST}
+    image: ${DB_IMAGE:-mysql:8.0}
+    container_name: ${DB_HOST:-joyeria-mysql}
     restart: always
     volumes:
       - joyeria-db:/var/lib/mysql
     ports:
-      - "${DB_PORT}:3306"
+      - "${DB_PORT:-5510}:3306"
     environment:
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWD}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWD}
+      MYSQL_DATABASE: ${DB_NAME:-joyeria_db}
+      MYSQL_USER: ${DB_USER:-app}
+      MYSQL_PASSWORD: ${DB_PASSWD:-password}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWD:-password}
     networks:
       - net-joyeria
 
   phpmyadmin:
-    image: ${DB_IMAGE_PHPMA}
-    container_name: ${DB_HOST_PHPMA}
+    image: ${DB_IMAGE_PHPMA:-phpmyadmin/phpmyadmin:latest}
+    container_name: ${DB_HOST_PHPMA:-joyeria.phpmyadmin}
     ports:
-      - "${DB_PORT_PHPMA}:80"
+      - "${DB_PORT_PHPMA:-3410}:80"
     depends_on:
       - db
     networks:
       - net-joyeria
+
 volumes:
   joyeria-db:
 networks:

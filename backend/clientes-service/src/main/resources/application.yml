@@ -9,6 +9,9 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  config:
+    # Config Server (T3): si no esta arriba, el servicio arranca con este application.yml.
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
 
 app:
   jwt:
@@ -16,6 +19,9 @@ app:
 
 server:
   port: 8084
+  error:
+    # Muestra el motivo real (Kafka, stock, validacion) en el JSON de error.
+    include-message: always
 
 eureka:
   client:
@@ -23,6 +29,8 @@ eureka:
     fetch-registry: true
     service-url:
       defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:

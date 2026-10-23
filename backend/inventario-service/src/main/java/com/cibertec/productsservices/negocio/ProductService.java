@@ -1,10 +1,12 @@
 package com.cibertec.productsservices.negocio;
 
+import com.cibertec.productsservices.dto.ProductRequest;
 import com.cibertec.productsservices.dto.ProductResponse;
 import com.cibertec.productsservices.entidades.Product;
 import com.cibertec.productsservices.repositorio.ProductRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -33,24 +35,35 @@ public class ProductService {
 				.toList();
 	}
 
-	public ProductResponse createProduct(Product product) {
+	public ProductResponse createProduct(ProductRequest request) {
+		Product product = Product.builder()
+				.name(request.name())
+				.descripcion(request.descripcion())
+				.tipoProducto(request.tipoProducto())
+				.tipoMaterial(request.tipoMaterial())
+				.quilates(request.quilates())
+				.peso(request.peso())
+				.price(request.price())
+				.stock(request.stock())
+				.estado(request.estado() != null ? request.estado() : "Disponible")
+				.build();
 		return mapToResponse(productRepository.save(product));
 	}
 
-	public ProductResponse updateProduct(Long id, Product product) {
+	public ProductResponse updateProduct(Long id, ProductRequest request) {
 		Product existing = productRepository.findById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Joya no encontrada"));
 
-		existing.setName(product.getName());
-		existing.setDescripcion(product.getDescripcion());
-		existing.setTipoProducto(product.getTipoProducto());
-		existing.setTipoMaterial(product.getTipoMaterial());
-		existing.setQuilates(product.getQuilates());
-		existing.setPeso(product.getPeso());
-		existing.setPrice(product.getPrice());
-		existing.setStock(product.getStock());
-		if (product.getEstado() != null) {
-			existing.setEstado(product.getEstado());
+		existing.setName(request.name());
+		existing.setDescripcion(request.descripcion());
+		existing.setTipoProducto(request.tipoProducto());
+		existing.setTipoMaterial(request.tipoMaterial());
+		existing.setQuilates(request.quilates());
+		existing.setPeso(request.peso());
+		existing.setPrice(request.price());
+		existing.setStock(request.stock());
+		if (request.estado() != null) {
+			existing.setEstado(request.estado());
 		}
 		return mapToResponse(productRepository.save(existing));
 	}
@@ -62,7 +75,12 @@ public class ProductService {
 		productRepository.deleteById(id);
 	}
 
+	// Descuenta stock por una venta. Rechaza cantidades nulas, cero o negativas:
+	// una cantidad negativa terminaria SUMANDO stock en lugar de restarlo.
+	@Transactional
 	public synchronized int decreaseStock(Long productId, Integer quantity) {
+		validateQuantity(quantity);
+
 		Product product = productRepository.findById(productId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Joya no encontrada"));
 
@@ -76,6 +94,28 @@ public class ProductService {
 		}
 		productRepository.save(product);
 		return product.getStock();
+	}
+
+	// Devuelve el stock cuando se anula una venta (evento de compensacion).
+	@Transactional
+	public synchronized int increaseStock(Long productId, Integer quantity) {
+		validateQuantity(quantity);
+
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Joya no encontrada"));
+
+		product.setStock(product.getStock() + quantity);
+		if (product.getStock() > 0 && "Vendido".equals(product.getEstado())) {
+			product.setEstado("Disponible");
+		}
+		productRepository.save(product);
+		return product.getStock();
+	}
+
+	private void validateQuantity(Integer quantity) {
+		if (quantity == null || quantity <= 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La cantidad debe ser mayor a 0");
+		}
 	}
 
 	private ProductResponse mapToResponse(Product product) {

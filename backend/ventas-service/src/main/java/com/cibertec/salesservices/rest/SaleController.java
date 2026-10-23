@@ -4,6 +4,7 @@ import com.cibertec.salesservices.dto.SaleRequest;
 import com.cibertec.salesservices.dto.SaleResponse;
 import com.cibertec.salesservices.dto.SaleWithProductResponse;
 import com.cibertec.salesservices.negocio.SaleService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -53,25 +54,25 @@ public class SaleController {
 	// @PostMapping asocia el método al POST /sales.
 	// En AWS sería un route POST de API Gateway hacia una Lambda.
 	@PostMapping("/sales")
-	public ResponseEntity<SaleResponse> createSale(@RequestBody SaleRequest request) {
+	public ResponseEntity<SaleResponse> createSale(@Valid @RequestBody SaleRequest request) {
 		return ResponseEntity.ok(saleService.createSale(request));
 	}
 
 	// Este endpoint separa el caso RabbitMQ del caso Kafka para que ambos flujos convivan sin duplicar
 	// el descuento de stock sobre la misma venta.
 	@PostMapping("/sales/rabbit-reserve")
-	public ResponseEntity<SaleResponse> createSaleWithRabbitReserve(@RequestBody SaleRequest request) {
+	public ResponseEntity<SaleResponse> createSaleWithRabbitReserve(@Valid @RequestBody SaleRequest request) {
 		return ResponseEntity.ok(saleService.createSaleWithRabbitReserve(request));
 	}
 
 	@PutMapping("/sales/{id}")
-	public ResponseEntity<SaleResponse> updateSale(@PathVariable Long id, @RequestBody SaleRequest request) {
+	public ResponseEntity<SaleResponse> updateSale(@PathVariable Long id, @Valid @RequestBody SaleRequest request) {
 		return ResponseEntity.ok(saleService.updateSale(id, request));
 	}
 
 	@DeleteMapping("/sales/{id}")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<?> deleteSale(@PathVariable Long id) {
+	public ResponseEntity<Void> deleteSale(@PathVariable Long id) {
 		saleService.deleteSale(id);
 		return ResponseEntity.noContent().build();
 	}

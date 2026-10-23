@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "joyeria-morgan-demo-04697",
     "name": "Joyeria Morgan - DEMO 10 min",
-    "description": "Version corta para la exposicion: 31 peticiones en 9 carpetas.\nLa v2 completa (74 peticiones) queda como respaldo y evidencia.\n\nGUION SUGERIDO (10 min)\n  1. Seguridad y roles (2 min) ........... 01\n  2. CRUD inventario y clientes (2 min) .. 02 + 03\n  3. Venta + Feign + Kafka (2 min) ....... 04\n  4. Resiliencia (1 min) ................. 05\n  5. RabbitMQ y stock final (1 min) ...... 06\n  6. Eureka + gateway + reportes (1 min) . 07\n  7. Observabilidad (30 s) ............... 08\n  8. Limpieza (30 s) ..................... 09\n\nANTES DE EXPONER\n  - Docker arriba y los 5 backends + Eureka + gateway + config-server arriba.\n  - Postman: environment en \"No Environment\".\n  - Un \"Run\" completo tarda ~6 s y deja la BD igual (27 joyas, 21 ventas, 13 clientes, 5 usuarios).\n\nSi el tiempo aprieta, se pueden saltar sin romper nada: 02, 03 y 08.",
+    "description": "Version corta para la exposicion: 39 peticiones en 9 carpetas.\nUn solo archivo, sin environment: las variables viven en la coleccion.\n\nGUION SUGERIDO (10 min)\n  1. Seguridad y roles (2 min) ........... 01\n  2. CRUD inventario y clientes (2 min) .. 02 + 03\n  3. Venta + Feign + Kafka (2 min) ....... 04\n  4. Resiliencia (1 min) ................. 05\n  5. RabbitMQ y stock final (1 min) ...... 06\n  6. Eureka + gateway + reportes (1 min) . 07\n  7. Observabilidad (30 s) ............... 08\n  8. Limpieza y devolucion de stock (30 s) 09\n\nANTES DE EXPONER\n  - Docker arriba (mysql, rabbitmq, kafka) y los 5 backends + Eureka + Config Server + gateway.\n  - Postman: environment en \"No Environment\".\n  - Un \"Run\" completo tarda ~8 s y deja la BD como estaba (crea y elimina sus propios datos de prueba).\n\nCOMPORTAMIENTOS VALIDADOS\n  - Sin token responde 401; con rol insuficiente responde 403.\n  - Producto inexistente 404, cantidad negativa 400, stock insuficiente 409.\n  - Anular una venta devuelve el stock (evento de compensacion).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -112,14 +112,15 @@
           "response": []
         },
         {
-          "name": "Acceso SIN token (debe rechazar)",
+          "name": "Acceso SIN token (401)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Denegado sin token (403)', () => pm.response.to.have.status(403));"
+                  "pm.test('Sin token responde 401 (no 403)', () => pm.response.to.have.status(401));",
+                  "pm.test('El cuerpo explica el motivo', () => pm.expect(pm.response.text()).to.include('No autenticado'));"
                 ]
               }
             }
@@ -303,6 +304,128 @@
             "header": [],
             "url": "{{inventarioUrl}}/products",
             "description": "GET /products: catalogo completo."
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar joya por ID (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const joya = pm.response.json();",
+                  "pm.test('Devuelve la joya pedida', () => pm.expect(String(joya.id)).to.eql(String(pm.variables.get('productId'))));",
+                  "pm.test('Trae nombre, precio y stock', () => {",
+                  "    pm.expect(joya.name).to.be.a('string');",
+                  "    pm.expect(joya.price).to.be.a('number');",
+                  "    pm.expect(joya.stock).to.be.a('number');",
+                  "});",
+                  "console.log('Joya ' + joya.id + ': ' + joya.name + ' | S/ ' + joya.price + ' | stock ' + joya.stock);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products/{{productId}}",
+            "description": "GET /products/{id}: busca una joya por su id. La variable productId vale 2 por defecto; cambiala en Variables para consultar otra."
+          },
+          "response": []
+        },
+        {
+          "name": "Producto inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 real, no 403 enmascarado', () => pm.response.to.have.status(404));",
+                  "pm.test('El cuerpo explica que no existe', () => pm.expect(pm.response.text().toLowerCase()).to.match(/no encontrado|not found/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products/999999",
+            "description": "Antes este 404 se convertia en 403 porque /error no estaba permitido en SecurityConfig."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear joya con precio invalido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza precio negativo con 400', () => pm.response.to.have.status(400));",
+                  "pm.test('No crea el registro', () => pm.expect(pm.response.text()).to.not.include('Joya precio invalido'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventarioUrl}}/products",
+            "description": "ProductRequest valida price > 0. Antes se aceptaba con 200.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Joya precio invalido {{runId}}\",\n  \"price\": -100,\n  \"stock\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear joya con stock negativo (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza stock negativo con 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventarioUrl}}/products",
+            "description": "ProductRequest valida stock >= 0.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Joya stock invalido {{runId}}\",\n  \"price\": 100,\n  \"stock\": -5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": []
         },
@@ -661,6 +784,113 @@
             "description": "GET /sales/{id}/details: ventas compone la respuesta con inventario y clientes."
           },
           "response": []
+        },
+        {
+          "name": "Venta con producto inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 cuando inventario dice que la joya no existe', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ventasUrl}}/sales",
+            "description": "Antes el fallo de Feign se ignoraba y la venta se guardaba con total=null.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 999999,\n  \"quantity\": 1,\n  \"customerId\": \"{{customerId}}\",\n  \"vendedor\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Venta con cantidad negativa (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza cantidad negativa con 400', () => pm.response.to.have.status(400));",
+                  "pm.test('No devuelve saleId (no se guardo)', () => pm.expect(pm.response.text()).to.not.include('saleId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ventasUrl}}/sales",
+            "description": "Antes quantity=-5 aumentaba el stock (20 -> 25).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{saleProductId}}\",\n  \"quantity\": -5,\n  \"customerId\": \"{{customerId}}\",\n  \"vendedor\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Venta con stock insuficiente (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 cuando no hay stock', () => pm.response.to.have.status(409));",
+                  "pm.test('Indica stock insuficiente', () => pm.expect(pm.response.text()).to.include('Stock insuficiente'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ventasUrl}}/sales",
+            "description": "Antes el 409 se convertia en 403 por el dispatch a /error.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{saleProductId}}\",\n  \"quantity\": 999999,\n  \"customerId\": \"{{customerId}}\",\n  \"vendedor\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -746,6 +976,11 @@
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
                   "const res = pm.response.json();",
                   "pm.test('Devuelve la venta creada', () => pm.expect(res.saleId).to.be.a('number'));",
+                  "pm.test('Total calculado por Feign (1000 x 1 = 1000)', () => pm.expect(Number(res.total)).to.eql(1000));",
+                  "pm.test('Tiene numero de boleta y fecha de venta', () => {",
+                  "    pm.expect(res.numeroBoleta).to.be.a('string').and.not.empty;",
+                  "    pm.expect(res.fechaVenta).to.be.a('string').and.not.empty;",
+                  "});",
                   "pm.collectionVariables.set('saleRabbitId', res.saleId);",
                   "console.log('Venta Rabbit creada: ' + res.saleId + ' (total=' + res.total + ', fechaVenta=' + res.fechaVenta + ')');"
                 ]
@@ -824,9 +1059,11 @@
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
                   "const stock = Number(pm.response.json().stock);",
-                  "const antes = Number(pm.collectionVariables.get('stockAntes'));",
-                  "pm.test('El stock no aumento', () => pm.expect(stock).to.be.at.most(antes));",
-                  "console.log('Stock: antes=' + antes + ' ahora=' + stock + ' (esperado 97 = 100 - 2 Kafka - 1 Rabbit)');"
+                  "pm.test('El stock bajo por la venta Kafka (-2) y la reserva Rabbit (-1)', () => {",
+                  "    pm.expect(stock).to.be.at.most(98);",
+                  "    pm.expect(stock).to.be.at.least(97);",
+                  "});",
+                  "console.log('Stock: antes=100 ahora=' + stock + ' (esperado 98 Kafka, 97 con Rabbit aplicado)');"
                 ]
               }
             }
@@ -964,10 +1201,10 @@
     },
     {
       "name": "09. Limpieza",
-      "description": "Borra lo creado en la corrida. La BD queda como estaba: 27 joyas, 21 ventas, 13 clientes, 5 usuarios.",
+      "description": "Anula primero las ventas (devuelve stock) y recien despues borra la joya temporal.",
       "item": [
         {
-          "name": "Eliminar venta de prueba (Kafka)",
+          "name": "Anular venta Kafka (devuelve stock)",
           "event": [
             {
               "listen": "prerequest",
@@ -975,7 +1212,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('newSaleId')) {",
-                  "    console.log('Sin newSaleId en esta corrida: se omite la limpieza');",
+                  "    console.log('Sin datos de esta corrida: se omite la peticion');",
                   "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
                   "}"
                 ]
@@ -986,7 +1223,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 204 (eliminado)', () => pm.response.to.have.status(204));",
+                  "pm.test('HTTP 204 (anulada)', () => pm.response.to.have.status(204));",
                   "pm.collectionVariables.set('newSaleId', '');"
                 ]
               }
@@ -996,7 +1233,93 @@
             "method": "DELETE",
             "header": [],
             "url": "{{ventasUrl}}/sales/{{newSaleId}}",
-            "description": "DELETE /sales/{id} de la venta creada en la carpeta 04."
+            "description": "DELETE publica sale-cancellation-requests e inventario devuelve el stock antes de borrar la fila."
+          },
+          "response": []
+        },
+        {
+          "name": "Anular venta Rabbit (devuelve stock)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('saleRabbitId')) {",
+                  "    console.log('Sin datos de esta corrida: se omite la peticion');",
+                  "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204 (anulada)', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('saleRabbitId', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{ventasUrl}}/sales/{{saleRabbitId}}",
+            "description": "Mismo evento de compensacion para la venta creada por RabbitMQ."
+          },
+          "response": []
+        },
+        {
+          "name": "Stock devuelto tras anular (100)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('saleProductId')) {",
+                  "    console.log('Sin datos de esta corrida: se omite la peticion');",
+                  "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const url = pm.variables.replaceIn('{{inventarioUrl}}/products/' + pm.collectionVariables.get('saleProductId'));",
+                  "const token = pm.variables.get('jwt_token');",
+                  "let attempts = 0;",
+                  "function check(cb) {",
+                  "    pm.sendRequest({ url: url, method: 'GET', header: { Authorization: 'Bearer ' + token } }, (err, res) => {",
+                  "        cb(err || res.code !== 200 ? null : res.json().stock);",
+                  "    });",
+                  "}",
+                  "function poll() {",
+                  "    check((stock) => {",
+                  "        if (stock === 100 || attempts >= 10) {",
+                  "            pm.test('El stock volvio a 100 tras anular las ventas', () => pm.expect(stock).to.eql(100));",
+                  "            console.log('Stock final=' + stock);",
+                  "        } else {",
+                  "            attempts++;",
+                  "            setTimeout(poll, 400);",
+                  "        }",
+                  "    });",
+                  "}",
+                  "poll();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventarioUrl}}/products/{{saleProductId}}",
+            "description": "Espera a que los consumidores de Kafka procesen las dos anulaciones y valida que el stock volvio a 100."
           },
           "response": []
         },
@@ -1009,7 +1332,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('saleProductId')) {",
-                  "    console.log('Sin saleProductId en esta corrida: se omite la limpieza');",
+                  "    console.log('Sin datos de esta corrida: se omite la peticion');",
                   "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
                   "}"
                 ]
@@ -1029,30 +1352,7 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": "{{inventarioUrl}}/products/{{saleProductId}}",
-            "description": "DELETE /products/{id} de la joya con stock 100."
-          },
-          "response": []
-        },
-        {
-          "name": "Eliminar venta Rabbit",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP 204 (eliminado)', () => pm.response.to.have.status(204));",
-                  "pm.collectionVariables.set('saleRabbitId', '');"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{ventasUrl}}/sales/{{saleRabbitId}}",
-            "description": "DELETE /sales/{id} de la venta con reserva RabbitMQ."
+            "url": "{{inventarioUrl}}/products/{{saleProductId}}"
           },
           "response": []
         }

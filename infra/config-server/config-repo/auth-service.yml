@@ -2,9 +2,9 @@ spring:
   application:
     name: auth-service
   datasource:
-    url: jdbc:mysql://localhost:5510/joyeria_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Lima
-    username: app
-    password: password
+    url: "jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:5510}/joyeria_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Lima"
+    username: ${DB_USER:app}
+    password: ${DB_PASSWORD:password}
   jpa:
     hibernate:
       ddl-auto: update
@@ -12,10 +12,13 @@ spring:
 
 server:
   port: 8083
+  error:
+    # Muestra el motivo real (Kafka, stock, validacion) en el JSON de error.
+    include-message: always
 
 app:
   jwt:
-    secret: "cibertec-demo-jwt-secret-key-2026-minimo-32-caracteres"
+    secret: "${JWT_SECRET:cibertec-demo-jwt-secret-key-2026-minimo-32-caracteres}"
     expiration-minutes: 60
 
 eureka:
@@ -23,7 +26,9 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: "${EUREKA_URL:http://localhost:8761/eureka/}"
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:

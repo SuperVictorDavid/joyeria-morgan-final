@@ -1,8 +1,10 @@
 package com.cibertec.productsservices.rest;
 
+import com.cibertec.productsservices.dto.ProductRequest;
 import com.cibertec.productsservices.dto.ProductResponse;
-import com.cibertec.productsservices.entidades.Product;
 import com.cibertec.productsservices.negocio.ProductService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,14 +38,14 @@ public class ProductController {
 
 	@PostMapping("/products")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ProductResponse createProduct(@RequestBody Product product) {
-		return productService.createProduct(product);
+	public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody ProductRequest request) {
+		return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(request));
 	}
 
 	@PutMapping("/products/{id}")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ProductResponse updateProduct(@PathVariable Long id, @RequestBody Product product) {
-		return productService.updateProduct(id, product);
+	public ProductResponse updateProduct(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+		return productService.updateProduct(id, request);
 	}
 
 	@DeleteMapping("/products/{id}")

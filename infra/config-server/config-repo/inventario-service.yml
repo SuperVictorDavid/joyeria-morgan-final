@@ -2,15 +2,15 @@ spring:
   application:
     name: inventario-service
   datasource:
-    url: jdbc:mysql://localhost:5510/joyeria_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Lima
-    username: app
-    password: password
+    url: "jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:5510}/joyeria_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Lima"
+    username: ${DB_USER:app}
+    password: ${DB_PASSWORD:password}
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: "${KAFKA_BOOTSTRAP:localhost:9092}"
     consumer:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -20,20 +20,29 @@ spring:
         spring.json.use.type.headers: false
         spring.json.value.default.type: "com.cibertec.productsservices.kafka.StockMovementEvent"
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+app:
+  jwt:
+    secret: "${JWT_SECRET:cibertec-demo-jwt-secret-key-2026-minimo-32-caracteres}"
 
 server:
   port: 8081
+  error:
+    # Muestra el motivo real (Kafka, stock, validacion) en el JSON de error.
+    include-message: always
 
 eureka:
   client:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: "${EUREKA_URL:http://localhost:8761/eureka/}"
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:
@@ -43,3 +52,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+messaging:
+  consumers:
+    enabled: true

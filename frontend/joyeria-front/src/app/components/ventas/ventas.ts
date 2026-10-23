@@ -7,6 +7,7 @@ import { JoyaService, Joya } from '../../services/joya';
 import { ClienteService, Cliente } from '../../services/cliente';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth';
+import { mensajeErrorApi } from '../../services/api-error';
 
 @Component({
   selector: 'app-ventas',
@@ -143,7 +144,7 @@ export class VentasComponent implements OnInit {
         this.detalle = d;
         this.cdr.detectChanges();
       },
-      error: () => this.toast.error('No se pudo obtener detalle (reinicia ventas-service)'),
+      error: (err) => this.toast.error(mensajeErrorApi(err, 'ventas-service (8082)')),
     });
   }
 
@@ -163,7 +164,7 @@ export class VentasComponent implements OnInit {
           this.toast.success('Venta eliminada');
           this.cargar();
         },
-        error: () => this.toast.error('No se pudo eliminar'),
+        error: (err) => this.toast.error('No se pudo eliminar: ' + mensajeErrorApi(err, 'ventas-service (8082)')),
       });
     }
   }

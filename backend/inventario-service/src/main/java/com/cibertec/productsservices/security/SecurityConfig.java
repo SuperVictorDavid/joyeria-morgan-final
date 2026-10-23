@@ -1,8 +1,10 @@
 package com.cibertec.productsservices.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -30,8 +32,23 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+						// /error debe ser publico: si no, Spring Security convierte cualquier 4xx/5xx en 403.
+						.requestMatchers("/error").permitAll()
 						.requestMatchers("/actuator/**").permitAll()
 						.anyRequest().authenticated()
+				)
+				// 401 cuando falta el token y 403 solo cuando el rol no alcanza.
+				.exceptionHandling(handling -> handling
+						.authenticationEntryPoint((request, response, authException) -> {
+							response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+							response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+							response.getWriter().write("{\"message\":\"No autenticado: token ausente o invalido\"}");
+						})
+						.accessDeniedHandler((request, response, accessDeniedException) -> {
+							response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+							response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+							response.getWriter().write("{\"message\":\"No autorizado: permisos insuficientes\"}");
+						})
 				)
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 				.build();

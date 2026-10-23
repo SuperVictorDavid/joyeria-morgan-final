@@ -23,3 +23,15 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "default"
+        - name: DB_HOST
+          value: "joyeria-mysql"
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_USER
+          value: "app"
+        - name: DB_PASSWORD
+          value: "password"
+        - name: EUREKA_URL
+          value: "http://eureka-server:8761/eureka/"
+        - name: CONFIG_SERVER_URL
+          value: "http://config-server:8888"
